@@ -1,0 +1,56 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject TravelDataClient Data
+<div class="route-map">
+    <div class="route-map-header"><span class="pill"><Icon Name="map" Size="15" />Twoja trasa piesza</span><span>@Stops.Count przystanków</span></div>
+    <div id="@_id" class="street-map" role="region" aria-label="Mapa trasy zwiedzania"></div>
+    <div class="route-map-footer"><small role="status">@_status</small></div>
+    @if (_failed && Stops.Count > 1) { <button class="button secondary small" @onclick="Retry">Wyznacz trasę ponownie</button> }
+    @if (Stops.Count > 0) { <a class="text-link map-directions" href="@GoogleRoute" target="_blank" rel="noopener noreferrer">Otwórz trasę w Mapach Google ↗</a> }
+</div>
+@code {
+    [Parameter] public IReadOnlyList<PlanStop> Stops { get; set; } = [];
+    private readonly string _id = "route-" + Guid.NewGuid().ToString("N");
+    private string? _rendered;
+    private string _status = "Przygotowuję mapę…";
+    private bool _disposed, _failed;
+    private int _revision;
+    private string Fingerprint => string.Join(";", Stops.Select(x => $"{x.Id}:{x.Latitude}:{x.Longitude}:{x.Title}"));
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || _rendered == Fingerprint) return;
+        _rendered = Fingerprint;
+        var revision = ++_revision;
+        var stops = Stops.ToArray();
+        _failed = false;
+        try
+        {
+            await JS.InvokeVoidAsync("travelio.maps.show", _id, stops, null);
+            _status = stops.Length < 2 ? "Wybierz co najmniej dwa miejsca, aby wyznaczyć trasę." : "Wyznaczam przejścia ulicami…";
+            StateHasChanged();
+            if (stops.Length < 2) return;
+            var route = await Data.RouteAsync(stops);
+            if (_disposed || revision != _revision) return;
+            await JS.InvokeVoidAsync("travelio.maps.show", _id, stops, route.Value.Geometry);
+            _status = $"{route.Value.Kilometers:N1} km · około {route.Value.Minutes} min pieszo · Valhalla / OSM" + (route.IsStale ? " · kopia offline" : "");
+        }
+        catch (Exception ex) when (ex is DomainException or JSException)
+        {
+            if (revision != _revision || _disposed) return;
+            _failed = true;
+            _status = "Nie udało się wyznaczyć trasy. Na mapie są lokalizacje punktów; możesz otworzyć trasę w Mapach Google.";
+        }
+        if (!_disposed) StateHasChanged();
+    }
+    private void Retry() { _rendered = null; StateHasChanged(); }
+    private static string Point(PlanStop stop) => $"{stop.Latitude.ToString(CultureInfo.InvariantCulture)},{stop.Longitude.ToString(CultureInfo.InvariantCulture)}";
+    private string GoogleRoute => Stops.Count == 1 ? TravelLinks.GoogleMaps(Stops[0].Title, new(Stops[0].Latitude, Stops[0].Longitude)) :
+        "https://www.google.com/maps/dir/?api=1&travelmode=walking&origin=" + Point(Stops[0]) + "&destination=" + Point(Stops[^1]) +
+        (Stops.Count > 2 ? "&waypoints=" + Uri.EscapeDataString(string.Join("|", Stops.Skip(1).Take(Stops.Count - 2).Take(9).Select(Point))) : "");
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true; _revision++;
+        try { await JS.InvokeVoidAsync("travelio.maps.dispose", _id); } catch (JSException) { }
+    }
+}
+

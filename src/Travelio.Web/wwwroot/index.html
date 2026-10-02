@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#107b65" />
+    <meta name="description" content="Travelio — planuj podróże, odkrywaj kierunki i zbieraj wspomnienia. Twoje plany dostępne także offline." />
+    <base href="/" />
+    <title>Travelio · Świat czeka</title>
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="_content/Travelio.UI/app.css" />
+    <link rel="stylesheet" href="_content/Travelio.UI/vendor/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="_content/Travelio.UI/live-data.css" />
+    <link rel="stylesheet" href="_content/Travelio.UI/accessibility.css" />
+    <link rel="preload" href="_content/Travelio.UI/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
+</head>
+<body>
+    <a class="skip-link" href="#main-content">Przejdź do treści</a>
+    <div id="app"><div class="loading-state"><span class="loading-compass">✦</span><p>Przygotowujemy Twoją przestrzeń…</p></div></div>
+    <div id="blazor-error-ui" hidden>Połączenie z aplikacją zostało przerwane. <a href="">Odśwież stronę</a>.</div>
+    <script src="_content/Travelio.UI/vendor/d3.min.js"></script>
+    <script src="_content/Travelio.UI/travelio.js"></script>
+    <script src="_content/Travelio.UI/vendor/leaflet/leaflet.js"></script>
+    <script src="_content/Travelio.UI/maps.js"></script>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="register-sw.js"></script>
+</body>
+</html>
+

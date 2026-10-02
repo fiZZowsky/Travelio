@@ -1,0 +1,40 @@
+<svg class="@($"icon {Class}")" width="@Size" height="@Size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    @((MarkupString)Paths.GetValueOrDefault(Name, Paths["compass"]))
+</svg>
+@code {
+    [Parameter] public string Name { get; set; } = "compass";
+    [Parameter] public int Size { get; set; } = 22;
+    [Parameter] public string Class { get; set; } = "";
+    private static readonly Dictionary<string, string> Paths = new()
+    {
+        ["compass"] = "<circle cx='12' cy='12' r='9'/><path d='m16 8-2.5 5.5L8 16l2.5-5.5Z'/>",
+        ["home"] = "<path d='m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z'/>",
+        ["map"] = "<path d='m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z'/><path d='M9 3v15M15 6v15'/>",
+        ["globe"] = "<circle cx='12' cy='12' r='9'/><ellipse cx='12' cy='12' rx='4' ry='9'/><path d='M3 12h18M5 6h14M5 18h14'/>",
+        ["wallet"] = "<path d='M20 8V5H5a2 2 0 0 0 0 4h16v11H5a2 2 0 0 1-2-2V7'/><path d='M21 12h-6v5h6'/><circle cx='17.5' cy='14.5' r='.5'/>",
+        ["case"] = "<rect x='3' y='7' width='18' height='14' rx='3'/><path d='M8 7V4h8v3M8 7v14M16 7v14'/>",
+        ["checklist"] = "<rect x='5' y='4' width='15' height='17' rx='2'/><path d='M9 2h7v4H9ZM9 11l1 1 2-2M9 16l1 1 2-2M15 11h2M15 16h2'/>",
+        ["arrow"] = "<path d='M4 12h15m-5-5 5 5-5 5'/>",
+        ["back"] = "<path d='M20 12H5m5-5-5 5 5 5'/>",
+        ["plus"] = "<path d='M12 5v14M5 12h14'/>",
+        ["search"] = "<circle cx='10.5' cy='10.5' r='6.5'/><path d='m16 16 5 5'/>",
+        ["bell"] = "<path d='M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4'/>",
+        ["pin"] = "<path d='M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z'/><circle cx='12' cy='10' r='2.5'/>",
+        ["calendar"] = "<rect x='3' y='5' width='18' height='16' rx='2'/><path d='M7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 17h3'/>",
+        ["people"] = "<circle cx='9' cy='8' r='3'/><path d='M3 21v-3a6 6 0 0 1 12 0v3M17 5a3 3 0 0 1 0 6M18 15a4 4 0 0 1 3 4v2'/>",
+        ["clock"] = "<circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/>",
+        ["sparkles"] = "<path d='m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5ZM20 2v4M18 4h4'/>",
+        ["plane"] = "<path d='m21 3-7 18-4-7-7-4ZM10 14 21 3'/>",
+        ["check"] = "<path d='m5 12 4 4L19 6'/>",
+        ["close"] = "<path d='m6 6 12 12M6 18 18 6'/>",
+        ["star"] = "<path d='m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z'/>",
+        ["shield"] = "<path d='m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6ZM8 12l3 3 5-6'/>",
+        ["cloud"] = "<path d='M6 18a5 5 0 1 1 1-10 6 6 0 0 1 11 1 4.5 4.5 0 0 1 0 9M9 20l3-3 3 3M12 17v6'/>",
+        ["settings"] = "<path d='M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1'/><circle cx='12' cy='12' r='5'/>",
+        ["leaf"] = "<path d='M20 3C9 2 2 8 5 15s15 6 15-12ZM4 21 16 8'/>",
+        ["download"] = "<path d='M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4'/>",
+        ["menu"] = "<path d='M4 6h16M4 12h16M4 18h16'/>",
+        ["trash"] = "<path d='M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7'/>"
+    };
+}
+

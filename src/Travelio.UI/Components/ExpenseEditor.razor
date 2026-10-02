@@ -1,0 +1,75 @@
+@inject WorkspaceService Workspace
+@inject TravelDataClient Data
+<Modal Title="@(Expense is null ? "Zapisz podróżniczy wydatek" : "Edytuj wydatek")" Close="Close">
+    @if (_error is not null) { <div class="notice error" role="alert">@_error</div> }
+    <form @onsubmit="Save" @onsubmit:preventDefault>
+        <label>Na co poszło?<input @bind="_expense.Description" placeholder="np. Kolacja z widokiem" required maxlength="200" autofocus /></label>
+        <div class="form-grid"><label>Kwota<input type="number" min="0.01" max="10000000" step="0.01" @bind="_expense.Amount" required /></label><label>Waluta<select @bind="_expense.Currency" @bind:after="CurrencyChanged"><option>PLN</option><option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option><option>CZK</option><option>JPY</option><option>IDR</option><option>ISK</option><option>THB</option></select></label></div>
+        @if (_expense.Currency != "PLN")
+        {
+            <label>Kurs: 1 @_expense.Currency = … PLN<input type="number" min="0.000001" max="100000" step="0.000001" @bind="_expense.RateToPln" @bind:after="ClearRateReference" required /><small>Wpisz kurs z transakcji lub pobierz średni kurs NBP z dnia wydatku (albo ostatniego wcześniejszego notowania).</small></label>
+            <button type="button" class="button secondary small" disabled="@_rateBusy" @onclick="FetchRate">@(_rateBusy ? "Pobieram kurs…" : "Pobierz kurs NBP")</button>
+            @if (_rateMessage is not null) { <p class="footnote" role="status">@_rateMessage</p> }
+            @if (_expense.RateDate is { } rateDate) { <p class="footnote">@_expense.RateSource · notowanie @Display.Date(rateDate). Kurs pozostanie zapisany w historii wydatku.</p> }
+        }
+        <label>Kategoria<select @bind="_expense.Category">@foreach (var c in Enum.GetValues<ExpenseCategory>()) { <option value="@c">@Display.Category(c)</option> }</select></label>
+        <div class="form-grid"><label>Data<input type="date" @bind="_expense.Date" @bind:after="ClearRateReference" required /></label><label>Kto zapłacił?<input @bind="_expense.PaidBy" maxlength="100" required /></label></div>
+        <div class="form-actions"><button class="button secondary" type="button" @onclick="Close">Anuluj</button><button class="button primary" disabled="@(_busy || _rateBusy)" type="submit">Zapisz wydatek</button></div>
+    </form>
+</Modal>
+@code {
+    [Parameter, EditorRequired] public Trip Trip { get; set; } = default!;
+    [Parameter] public EventCallback Close { get; set; }
+    [Parameter] public EventCallback Saved { get; set; }
+    [Parameter] public Expense? Expense { get; set; }
+    private Expense _expense = new() { Category = ExpenseCategory.Food };
+    private string? _error;
+    private bool _busy, _rateBusy;
+    private string? _rateMessage;
+    protected override void OnInitialized()
+    {
+        if (Expense is not null) _expense = System.Text.Json.JsonSerializer.Deserialize<Expense>(System.Text.Json.JsonSerializer.Serialize(Expense))!;
+    }
+    private void ClearRateReference() { _expense.RateDate = null; _expense.RateSource = null; _rateMessage = null; }
+    private void CurrencyChanged() { ClearRateReference(); _expense.RateToPln = _expense.Currency == "PLN" ? 1 : 0; }
+    private async Task FetchRate()
+    {
+        var currency = _expense.Currency; var date = _expense.Date;
+        _rateBusy = true; _error = null;
+        try
+        {
+            var result = await Data.RateAsync(currency, date);
+            if (_expense.Currency != currency || _expense.Date != date) return;
+            _expense.RateToPln = result.Value.RateToPln;
+            _expense.RateDate = result.Value.EffectiveDate; _expense.RateSource = "NBP";
+            _rateMessage = result.IsStale ? "Użyto zapisanego notowania NBP. To kurs średni, który może różnić się od kursu Twojego banku." : "Pobrano średni kurs NBP. Możesz zastąpić go kursem swojej transakcji.";
+        }
+        catch (DomainException ex) { _error = ex.Message + " Możesz wpisać kurs ręcznie."; }
+        catch (JSException) { _error = "Nie można zapisać kursu w pamięci urządzenia. Wpisz go ręcznie."; }
+        finally { _rateBusy = false; }
+    }
+    private async Task Save()
+    {
+        if (_busy || _rateBusy) return;
+        _busy = true; _error = null;
+        try
+        {
+            var current = Workspace.Find(Trip.Id) ?? throw new DomainException("Podróż nie jest już dostępna.");
+            if (_expense.Currency == "PLN") _expense.RateToPln = 1;
+            if (Expense is null) current.AddExpense(_expense);
+            else
+            {
+                var index = current.Expenses.FindIndex(x => x.Id == Expense.Id);
+                if (index < 0) throw new DomainException("Ten wydatek został już usunięty.");
+                current.Expenses[index] = _expense;
+            }
+            await Workspace.SaveAsync(current);
+            await Saved.InvokeAsync();
+        }
+        catch (DomainException ex) { _error = ex.Message; }
+        catch (JSException) { _error = "Brak miejsca w pamięci. Wydatek nie został zapisany."; }
+        catch (IOException) { _error = "Nie można zapisać pliku wydatków na urządzeniu."; }
+        finally { _busy = false; }
+    }
+}
+

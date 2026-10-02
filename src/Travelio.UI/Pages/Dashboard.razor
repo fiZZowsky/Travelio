@@ -1,0 +1,52 @@
+@page "/"
+@inject WorkspaceService Workspace
+@inject IDestinationCatalog Catalog
+<PageTitle>Travelio · Twój świat zaczyna się tutaj</PageTitle>
+
+<PageHeader Eyebrow="DOBRZE CIĘ WIDZIEĆ ☀" Title="Świat czeka. Dokąd teraz?" Subtitle="Wielkie przygody zaczynają się od małego planu.">
+    <button class="button primary" @onclick="() => _newTrip = true"><Icon Name="plus" Size="18" />Nowa podróż</button>
+</PageHeader>
+<div class="dashboard-hero">
+    <a class="hero-destination" href="/discover?destination=lisbon">
+        <img src="@Display.Image(Catalog.Get("lisbon"))" alt="Lizbona – kolorowe kamienice nad Tagiem" fetchpriority="high" />
+        <div class="hero-shade"></div>
+        <span class="hero-badge"><span></span> MIEJSCE NA TWOJĄ NASTĘPNĄ HISTORIĘ</span>
+        <div class="hero-copy"><div class="hero-location"><Icon Name="pin" Size="16" />Lizbona, Portugalia</div><h2>Trochę słońca.<br />Całe mnóstwo wspomnień.</h2><p>Odkryj miasto, w którym warto się zgubić.</p><span class="button hero-button">Poczuj klimat Lizbony <Icon Name="arrow" Size="19" /></span></div>
+        <div class="hero-coordinate">38°43′ N &nbsp; 9°08′ W</div>
+        <div class="hero-pages"><span class="active"></span><span></span><span></span></div>
+    </a>
+    <div class="discovery-banner">
+        <span class="pill"><Icon Name="sparkles" Size="14" /> TWÓJ OSOBISTY KOMPAS</span>
+        <div class="compass-art"><div class="compass-ring"><span>N</span><Icon Name="compass" Size="93" /></div><span class="art-sparkle">✦</span><span class="art-dot"></span><div class="mini-ticket"><Icon Name="plane" Size="19" /><div>GDZIEŚ DALEJ<br /><strong>Twoja przygoda</strong></div></div></div>
+        <h2>Nie wiesz, dokąd?<br />Znajdźmy Twój kierunek.</h2><p>Odpowiedz na kilka pytań.<br />Resztę podpowie Twój kompas.</p>
+        <a class="button primary full-width" href="/discover?quiz=true">Znajdź mój kierunek <Icon Name="arrow" Size="18" /></a><small>Około minuty · całkiem po Twojemu</small>
+    </div>
+</div>
+<div class="stats-grid">
+    <div class="stat-card"><span class="stat-icon mint"><Icon Name="case" /></span><div><span>Zaplanowane podróże</span><strong>@Workspace.Trips.Count <small>kolejna przygoda czeka</small></strong></div></div>
+    <div class="stat-card"><span class="stat-icon peach"><Icon Name="globe" /></span><div><span>Odwiedzone kraje</span><strong>@Workspace.Countries.Count <small>i tyle jeszcze przed Tobą</small></strong></div></div>
+    <div class="stat-card"><span class="stat-icon lavender"><Icon Name="wallet" /></span><div><span>Podróżnicze wydatki</span><strong>@Display.Money(Workspace.Trips.Sum(x => x.Trip.Spent)) <small>pod kontrolą</small></strong></div></div>
+</div>
+<div class="section-heading"><div><span class="eyebrow">MAŁE INSPIRACJE, WIELKIE PLANY</span><h2>Gdzie poniesie Cię tym razem?</h2></div><a class="text-link" href="/discover">Wszystkie kierunki <Icon Name="arrow" Size="17" /></a></div>
+<div class="destination-grid dashboard-destinations">
+    <DestinationCard Destination="@Catalog.Get("bali")" Tag="Blisko natury" />
+    <DestinationCard Destination="@Catalog.Get("rome")" Tag="Kultura i smaki" />
+    <DestinationCard Destination="@Catalog.Get("kyoto")" Tag="Coś zupełnie innego" />
+    <DestinationCard Destination="@Catalog.Get("barcelona")" Tag="Miasto i plaża" />
+</div>
+<div class="dashboard-bottom">
+    <section class="panel next-trip">
+        <div class="section-heading compact"><h2>Najbliższa przygoda</h2><a href="/trips" class="text-link">Moje podróże <Icon Name="arrow" Size="16" /></a></div>
+        @if (Workspace.Trips.OrderBy(x => x.Trip.StartDate).FirstOrDefault() is { } next)
+        {
+            var destination = Catalog.Resolve(next.Trip);
+            <a class="next-trip-content" href="@($"/trips/{next.Trip.Id}")"><img src="@Display.Image(destination)" alt="@destination.Name" loading="lazy" /><div><span class="pill mint">Twój plan jest gotowy</span><h3>@next.Trip.Name</h3><p><Icon Name="calendar" Size="15" />@Display.Date(next.Trip.StartDate) – @Display.Date(next.Trip.EndDate) <span>·</span> @next.Trip.Travelers os.</p><div class="mini-progress"><span style="@($"width:{Math.Min(100, next.Trip.Spent / Math.Max(1, next.Trip.Budget) * 100).ToString(CultureInfo.InvariantCulture)}%")"></span></div><small>@Display.Money(next.Trip.Spent) z @Display.Money(next.Trip.Budget) budżetu</small></div><span class="round-arrow"><Icon Name="arrow" /></span></a>
+        }
+        else { <p class="muted">Twoja pierwsza przygoda czeka na plan.</p><button class="button secondary" @onclick="() => _newTrip = true">Zaplanuj podróż</button> }
+    </section>
+    <a class="world-teaser panel" href="/passport"><div><span class="eyebrow">TWÓJ PODRÓŻNICZY PASZPORT</span><h2>Wspomnienia<br />z całego świata.</h2><p>@Workspace.Countries.Count odwiedzonych krajów. Każdy z własną historią.</p><span class="text-link">Otwórz mój globus <Icon Name="arrow" Size="17" /></span></div><div class="teaser-globe"><Icon Name="globe" Size="115" /><span class="globe-pin">●</span></div></a>
+</div>
+<p class="footnote">Miejsca i noclegi pobieramy z OpenStreetMap. Ceny rezerwacji sprawdzisz u dostawców. Zdjęcia mają charakter inspiracyjny.</p>
+@if (_newTrip) { <NewTripForm Close="() => _newTrip = false" /> }
+@code { private bool _newTrip; }
+

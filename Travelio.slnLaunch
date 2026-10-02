@@ -1,0 +1,8 @@
+[
+  {
+    "Name": "Travelio Web + API",
+    "Projects": [
+      { "Path": "src\\Travelio.Api\\Travelio.Api.csproj", "Action": "Start" }
+    ]
+  }
+]

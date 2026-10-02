@@ -1,0 +1,23 @@
+{
+  "profiles": {
+    "Travelio Desktop (Windows)": {
+      "commandName": "Project",
+      "nativeDebugging": false
+    },
+    "Travelio Android (emulator)": {
+      "commandName": "Project",
+      "nativeDebugging": false,
+      "environmentVariables": { "DOTNET_ENVIRONMENT": "Development" }
+    },
+    "Travelio iOS (simulator)": {
+      "commandName": "Project",
+      "nativeDebugging": false,
+      "environmentVariables": { "DOTNET_ENVIRONMENT": "Development" }
+    },
+    "Travelio Mac Catalyst": {
+      "commandName": "Project",
+      "nativeDebugging": false,
+      "environmentVariables": { "DOTNET_ENVIRONMENT": "Development" }
+    }
+  }
+}

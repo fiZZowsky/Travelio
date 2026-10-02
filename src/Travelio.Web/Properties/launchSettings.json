@@ -1,0 +1,20 @@
+{
+  "profiles": {
+    "Travelio Web (HTTP)": {
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "commandLineArgs": "run --project \"$(ProjectDir)..\\Travelio.Api\\Travelio.Api.csproj\" --launch-profile \"Travelio Web\"",
+      "workingDirectory": "$(ProjectDir)..\\Travelio.Api",
+      "launchBrowser": true,
+      "launchUrl": "http://localhost:5180"
+    },
+    "Travelio Web (HTTPS)": {
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "commandLineArgs": "run --project \"$(ProjectDir)..\\Travelio.Api\\Travelio.Api.csproj\" --launch-profile \"Travelio API (HTTPS)\"",
+      "workingDirectory": "$(ProjectDir)..\\Travelio.Api",
+      "launchBrowser": true,
+      "launchUrl": "https://localhost:7180"
+    }
+  }
+}

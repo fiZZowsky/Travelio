@@ -1,0 +1,95 @@
+@inherits LayoutComponentBase
+@implements IAsyncDisposable
+@inject WorkspaceService Workspace
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ReminderCoordinator Reminders
+
+<div class="app-shell">
+    <aside class="sidebar @(_menuOpen ? "open" : "")">
+        <a class="brand" href="/" aria-label="Travelio – strona główna"><span class="brand-mark"><Icon Name="plane" Size="24" /></span>travelio<span class="brand-dot">.</span></a>
+        <div class="nav-caption">TWÓJ KAWAŁEK ŚWIATA</div>
+        <nav aria-label="Nawigacja główna" @onclick="CloseMenu">
+            <NavLink href="/" Match="NavLinkMatch.All"><Icon Name="home" />Pulpit</NavLink>
+            <NavLink href="/discover"><Icon Name="compass" />Odkrywaj<span class="small-new">Dla Ciebie</span></NavLink>
+            <NavLink href="/trips"><Icon Name="case" />Moje podróże</NavLink>
+            <NavLink href="/passport"><Icon Name="globe" />Mój świat</NavLink>
+            <NavLink href="/budget"><Icon Name="wallet" />Budżet i wydatki</NavLink>
+            <NavLink href="/preparation"><Icon Name="checklist" />Przygotowania</NavLink>
+        </nav>
+        <a class="sidebar-inspiration" href="/discover">
+            <div class="tiny-planet"><Icon Name="globe" Size="35" /><span>✦</span></div>
+            <strong>Mały krok.<br />Wielka przygoda.</strong>
+            <p>Znajdź kierunek, który<br />pasuje właśnie do Ciebie.</p>
+            <span>Znajdź inspirację <Icon Name="arrow" Size="17" /></span>
+        </a>
+        <div class="sidebar-bottom">
+            <button class="sync-button" @onclick="Reconnect" title="Sprawdź połączenie i synchronizuj"><span class="status-dot @(Workspace.IsOnline ? "" : "offline")"></span>@Workspace.ConnectionLabel<Icon Name="cloud" Size="18" /></button>
+            <NavLink href="/account" class="account-link"><span class="avatar">@(Workspace.User?.Email[..1].ToUpperInvariant() ?? "T")</span><span><strong>@(Workspace.User is null ? "Odkrywaj po swojemu" : Workspace.User.Email.Split('@')[0])</strong><small>@(Workspace.User is null ? "Twoja lokalna przestrzeń" : "Moje konto")</small></span><Icon Name="settings" Size="18" /></NavLink>
+        </div>
+    </aside>
+    @if (_menuOpen) { <button class="menu-backdrop" aria-label="Zamknij menu" @onclick="CloseMenu"></button> }
+    <div class="main-shell">
+        <header class="topbar">
+            <button class="icon-button mobile-menu" aria-label="Otwórz menu" @onclick="() => _menuOpen = !_menuOpen"><Icon Name="menu" /></button>
+            <div class="breadcrumb">Twoja przestrzeń <span>/</span> <strong>Podróże zaczynają się tutaj</strong></div>
+            <div class="topbar-actions"><span class="local-label"><span class="status-dot @(Workspace.IsOnline ? "" : "offline")"></span>@Workspace.ConnectionLabel</span><a class="icon-button" href="/preparation" aria-label="Przygotowania i alerty"><Icon Name="bell" /></a><a href="/account" class="avatar avatar-small" aria-label="Konto użytkownika">@(Workspace.User?.Email[..1].ToUpperInvariant() ?? "T")</a></div>
+        </header>
+        <main id="main-content">
+            @if (_error is not null) { <div class="notice error" role="alert">@_error</div> }
+            @if (_ready)
+            {
+                @if (!Workspace.IsOnline || Workspace.HasConflicts || (Workspace.User is not null && !Workspace.SessionValid))
+                {
+                    <div class="notice"><Icon Name="cloud" />@Workspace.Status <a href="/account">Szczegóły</a></div>
+                }
+                <ErrorBoundary @ref="_boundary">
+                    <ChildContent>@Body</ChildContent>
+                    <ErrorContent><div class="empty-state"><h1>Coś zatrzymało tę podróż</h1><p>Odśwież stronę. Zapisane dane pozostają na urządzeniu.</p><button class="button primary" @onclick="Reload">Odśwież</button></div></ErrorContent>
+                </ErrorBoundary>
+            }
+            else { <div class="loading-state"><span class="loading-compass">✦</span><p>Przygotowujemy Twoją przestrzeń…</p></div> }
+        </main>
+        <footer class="app-footer"><span>travelio · Zbieraj wspomnienia, nie rzeczy.</span><span>OpenStreetMap · Open-Meteo · GDACS <span class="footer-dot">·</span> Stworzone dla odkrywców</span></footer>
+    </div>
+</div>
+
+@code {
+    private bool _ready, _connected, _menuOpen;
+    private string? _error;
+    private ErrorBoundary? _boundary;
+    private DotNetObjectReference<MainLayout>? _reference;
+    protected override async Task OnInitializedAsync()
+    {
+        Workspace.Changed += OnWorkspaceChanged;
+        Navigation.LocationChanged += LocationChanged;
+        try { await Workspace.InitializeAsync(); _ready = true; }
+        catch { _error = "Nie udało się otworzyć pamięci lokalnej. Włącz przechowywanie danych witryn i odśwież stronę."; }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_ready && !_connected)
+        {
+            _connected = true;
+            _reference = DotNetObjectReference.Create(this);
+            Workspace.SetDeviceConnectivity(await JS.InvokeAsync<bool>("travelio.connection.watch", _reference));
+            await Workspace.ConnectAsync();
+            await Reminders.RefreshAsync();
+        }
+    }
+    [JSInvokable] public async Task Reconnect() { await Workspace.ConnectAsync(); await Reminders.RefreshAsync(); }
+    [JSInvokable] public async Task NetworkChanged(bool online)
+    { Workspace.SetDeviceConnectivity(online); if (online) await Reconnect(); }
+    private void OnWorkspaceChanged() => _ = InvokeAsync(StateHasChanged);
+    private void LocationChanged(object? sender, LocationChangedEventArgs args) { _boundary?.Recover(); _menuOpen = false; }
+    private void CloseMenu() => _menuOpen = false;
+    private void Reload() => Navigation.NavigateTo(Navigation.Uri, true);
+    public async ValueTask DisposeAsync()
+    {
+        Workspace.Changed -= OnWorkspaceChanged;
+        Navigation.LocationChanged -= LocationChanged;
+        try { await JS.InvokeVoidAsync("travelio.connection.unwatch"); } catch (JSException) { }
+        _reference?.Dispose();
+    }
+}
+

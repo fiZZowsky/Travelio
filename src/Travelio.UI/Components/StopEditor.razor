@@ -1,0 +1,102 @@
+@inject TravelDataClient Data
+@inject IDestinationCatalog Catalog
+@inject WorkspaceService Workspace
+<Modal Title="@(Stop is null ? "Dodaj miejsce do planu" : "Edytuj punkt planu")" Class="modal-wide" Close="Close">
+    <p class="muted">Wpisz nazwę miejsca lub adres. Lokalizację znajdziemy za Ciebie.</p>
+    <div class="place-search"><label>Nazwa miejsca lub adres<input @bind="_query" @bind:event="oninput" maxlength="120" placeholder="np. Wawel, kawiarnia, nazwa ulicy" @onkeydown="KeyDown" /></label><button type="button" class="button secondary" disabled="@_searching" @onclick="Search"><Icon Name="search" Size="17" />@(_searching ? "Szukam…" : "Szukaj miejsca")</button></div>
+    @if (_error is not null) { <div class="notice error" role="alert">@_error</div> }
+    @if (_places.Count > 0)
+    {
+        <p class="eyebrow">@(_searched ? "WYNIKI W OKOLICY" : "PROPOZYCJE Z POBRANEGO KATALOGU")</p>
+        <div class="place-results">
+        @foreach (var place in _places.Take(16))
+        { <button type="button" class="place-result @(_chosen?.Id == place.Id ? "selected" : "")" @onclick="() => Choose(place)"><Icon Name="pin" /><span><strong>@place.Name</strong><small>@place.Description</small></span><Icon Name="plus" Size="18" /></button> }
+        </div>
+    }
+    else if (_searched && !_searching) { <p class="notice">Nie znaleziono miejsca. Spróbuj pełniejszej nazwy lub adresu.</p> }
+    @if (_chosen is not null)
+    {
+        <div class="notice success"><Icon Name="pin" /><div><strong>@_chosen.Name</strong><p>@_chosen.Description</p><a href="@TravelLinks.GoogleMaps(_chosen.Name, _chosen.Location)" target="_blank" rel="noopener noreferrer" class="text-link">Sprawdź w Mapach Google ↗</a></div></div>
+        @if (!string.IsNullOrWhiteSpace(_chosen.OpeningHours)) { <p class="footnote">Godziny podane w OpenStreetMap: @_chosen.OpeningHours</p> }
+        <form @onsubmit="Save" @onsubmit:preventDefault>
+            <label>Nazwa w Twoim planie<input @bind="_title" required maxlength="200" /></label>
+            <div class="form-grid"><label>Dzień<select @bind="_day">@for (var n = 1; n <= Trip.Days; n++) { <option value="@n">Dzień @n · @Display.Date(Trip.StartDate.AddDays(n - 1))</option> }</select></label><label>Godzina wizyty<input type="time" @bind="_time" required /></label></div>
+            <div class="form-grid"><label>Czas wizyty (min)<input type="number" min="1" max="720" @bind="_duration" required /></label><label>Szacowany koszt dla grupy (PLN)<input type="number" min="0" max="1000000" step="0.01" @bind="_cost" placeholder="Nieznany" /></label></div>
+            <div class="form-actions"><button type="button" class="button secondary" @onclick="Close">Anuluj</button><button class="button primary" type="submit" disabled="@_saving">@(Stop is null ? "Dodaj do planu" : "Zapisz punkt")</button></div>
+        </form>
+    }
+    <p class="footnote">© OpenStreetMap contributors · Photon. Czasy wizyt są Twoim planem, a nie potwierdzeniem rezerwacji.</p>
+</Modal>
+@code {
+    [Parameter, EditorRequired] public Trip Trip { get; set; } = default!;
+    [Parameter] public int Day { get; set; }
+    [Parameter] public PlanStop? Stop { get; set; }
+    [Parameter] public EventCallback Close { get; set; }
+    [Parameter] public EventCallback Saved { get; set; }
+    private string _query = "", _title = "";
+    private string? _error;
+    private bool _searching, _searched, _saving;
+    private List<Attraction> _places = [];
+    private Attraction? _chosen;
+    private int _day, _duration = 60;
+    private TimeOnly _time = new(15, 0);
+    private decimal? _cost;
+    protected override void OnInitialized()
+    {
+        _day = Day;
+        var lastStop = Trip.Itinerary.FirstOrDefault(x => x.Number == Day)?.Stops.OrderBy(x => x.StartsAt).LastOrDefault();
+        _time = lastStop is null ? new TimeOnly(9, 0) : lastStop.StartsAt.AddMinutes(lastStop.DurationMinutes + 20);
+        var visitedIds = Trip.Itinerary.SelectMany(x => x.Stops).Select(x => x.AttractionId).ToHashSet();
+        _places = Catalog.Resolve(Trip).Attractions.Where(x => !visitedIds.Contains(x.Id)).Take(16).ToList();
+        if (Stop is not null)
+        {
+            _chosen = new(Stop.AttractionId, Stop.Title, "Miejsce z Twojego planu", TravelStyle.Culture,
+                new(Stop.Latitude, Stop.Longitude), Stop.DurationMinutes, Stop.EstimatedCostPln, new(0, 0), new(23, 59), Stop.SourceUrl, Stop.OpeningHours);
+            _title = Stop.Title; _time = Stop.StartsAt; _duration = Stop.DurationMinutes; _cost = Stop.EstimatedCostPln;
+        }
+    }
+    private void Choose(Attraction place) { _chosen = place; _title = place.Name; _duration = place.DurationMinutes; _cost = place.CostPln * Trip.Travelers; _error = null; }
+    private Task KeyDown(KeyboardEventArgs e) => e.Key == "Enter" ? Search() : Task.CompletedTask;
+    private async Task Search()
+    {
+        if (_searching) return;
+        _searching = true; _searched = true; _error = null;
+        var destination = Catalog.Resolve(Trip);
+        _places = destination.Attractions.Where(x => x.Name.Contains(_query, StringComparison.OrdinalIgnoreCase)).ToList();
+        try
+        {
+            if (_query.Trim().Length < 2) throw new DomainException("Wpisz przynajmniej 2 znaki nazwy lub adresu.");
+            if (Workspace.IsOnline || !Workspace.ConnectionChecked)
+            {
+                var result = await Data.SearchPlacesAsync(_query, destination);
+                _places = result.Value.Concat(_places).DistinctBy(x => x.Id).ToList();
+            }
+            else _error = "Szukamy w zapisanych miejscach. Wyszukiwanie nowych adresów będzie dostępne po połączeniu z serwerem.";
+        }
+        catch (Exception ex) when (ex is DomainException or JSException) { _error = ex.Message; }
+        finally { _searching = false; }
+    }
+    private async Task Save()
+    {
+        if (_chosen is null || _saving) return;
+        _saving = true; _error = null;
+        try
+        {
+            var trip = Workspace.Find(Trip.Id) ?? throw new DomainException("Nie znaleziono podróży.");
+            var point = new PlanStop { Id = Stop?.Id ?? Guid.NewGuid(), AttractionId = _chosen.Id, Title = _title.Trim(),
+                StartsAt = _time, DurationMinutes = _duration, EstimatedCostPln = _cost, Latitude = _chosen.Location.Latitude,
+                Longitude = _chosen.Location.Longitude, SourceUrl = _chosen.SourceUrl, OpeningHours = _chosen.OpeningHours, Completed = Stop?.Completed ?? false };
+            foreach (var day in trip.Itinerary) day.Stops.RemoveAll(x => x.Id == point.Id);
+            var target = trip.Itinerary.FirstOrDefault(x => x.Number == _day);
+            if (target is null) { target = new() { Number = _day }; trip.Itinerary.Add(target); }
+            var end = _time.ToTimeSpan().TotalMinutes + _duration;
+            if (end > 24 * 60 || target.Stops.Any(x => _time.ToTimeSpan().TotalMinutes < x.StartsAt.ToTimeSpan().TotalMinutes + x.DurationMinutes && end > x.StartsAt.ToTimeSpan().TotalMinutes))
+                throw new DomainException("Wizyta nakłada się na inny punkt lub wykracza poza dzień. Wybierz inną godzinę.");
+            target.Stops.Add(point); target.Stops = target.Stops.OrderBy(x => x.StartsAt).ToList();
+            await Workspace.SaveAsync(trip);
+            await Saved.InvokeAsync();
+        }
+        catch (Exception ex) when (ex is DomainException or JSException) { _error = ex.Message; }
+        finally { _saving = false; }
+    }
+}

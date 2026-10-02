@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Travelio.Infrastructure/Travelio.Infrastructure.csproj" />
+    <ProjectReference Include="../Travelio.Web/Travelio.Web.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.0.31" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.31" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

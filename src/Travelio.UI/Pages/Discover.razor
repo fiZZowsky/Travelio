@@ -1,0 +1,105 @@
+@page "/discover"
+@inject IDestinationCatalog Catalog
+@inject IRecommendationService Recommendations
+@inject TravelDataClient Data
+<PageTitle>Odkrywaj · Travelio</PageTitle>
+<PageHeader Eyebrow="DAJ SIĘ ZAINSPIROWAĆ" Title="Znajdź swoje miejsce na świecie." Subtitle="Wyszukaj miasto i odkryj jego prawdziwe miejsca.">
+    <button class="button primary" @onclick="OpenQuiz"><Icon Name="sparkles" Size="18" />Dobierz kierunek</button>
+</PageHeader>
+<section class="panel"><CitySearch Selected="SelectCity" /></section>
+@if (_error is not null) { <p class="notice error" role="alert">@_error</p> }
+<div class="section-heading"><h2>@(_results is null ? "Pomysły na następną podróż" : "Kierunki dla Ciebie")</h2>
+@if (_results is not null) { <button class="text-link" @onclick="() => _results = null">Wyczyść</button> }</div>
+<div class="destination-grid discovery-grid">
+@foreach (var d in _results?.Select(x => x.Destination) ?? Catalog.All)
+{
+    var recommendation = _results?.FirstOrDefault(x => x.Destination.Id == d.Id);
+    <div><DestinationCard Destination="@d" Tag="@(recommendation is null ? Display.Style(d.Styles.FirstOrDefault()) : $"{recommendation.Match}% dopasowania")" />
+    @if (recommendation is not null) { <p class="match-reasons">@string.Join(" · ", recommendation.Reasons)</p> }</div>
+}
+</div>
+<p class="footnote">Inspiracje dobieramy według zainteresowań i sezonu. Atrakcje pobieramy po wybraniu miasta. Zdjęcia mają charakter inspiracyjny.</p>
+@if (_quiz)
+{
+    <Modal Title="Podróż zaczyna się od Ciebie" Close="() => _quiz = false">
+        <div class="quiz-progress">@for (var i = 0; i < 3; i++) { <span class="@(i <= _step ? "active" : "")"></span> }</div>
+        <p class="eyebrow">PYTANIE @(_step + 1) Z 3</p>
+        @if (_step == 0)
+        {
+            <h3>Co sprawia Ci najwięcej radości?</h3><div class="choice-grid">@foreach (var style in Enum.GetValues<TravelStyle>()) { <button class="choice @(_style == style ? "selected" : "")" @onclick="() => _style = style"><Icon Name="compass" />@Display.Style(style)</button> }</div>
+        }
+        else if (_step == 1)
+        {
+            <h3>Jak wygląda Twoja wymarzona podróż?</h3>
+            <label>Liczba dni<input type="number" min="1" max="30" @bind="_days" /></label>
+            <label>Budżet dzienny na osobę (PLN, bez lotu)<input type="range" min="150" max="1200" step="10" @bind="_budget" /><strong class="range-value">@Display.Money(_budget)</strong></label>
+            <p class="footnote">Budżet wykorzystamy jako Twój limit planu. Koszty rezerwacji sprawdzisz u dostawców.</p>
+            <label>Tempo<select @bind="_pace">@foreach (var pace in Enum.GetValues<TravelPace>()) { <option value="@pace">@Display.Pace(pace)</option> }</select></label>
+        }
+        else
+        {
+            <h3>Kiedy i gdzie chcesz ruszyć?</h3>
+            <label>Miesiąc wyjazdu<select @bind="_month">@for (var m = 1; m <= 12; m++) { <option value="@m">@Display.Polish.DateTimeFormat.GetMonthName(m)</option> }</select></label>
+            <label>Region<select @bind="_region"><option value="">Niech świat mnie zaskoczy</option><option>Europa</option><option>Azja</option></select></label>
+        }
+        @if (_quizError is not null) { <p class="notice error">@_quizError</p> }
+        <div class="form-actions">@if (_step > 0) { <button class="button secondary" @onclick="() => _step--">Wstecz</button> }<button class="button primary" @onclick="Next">@(_step == 2 ? "Pokaż moje kierunki" : "Dalej")<Icon Name="arrow" Size="18" /></button></div>
+    </Modal>
+}
+@if (_selected is not null && !_newTrip)
+{
+    <Modal Title="@($"{_selected.Name}, {_selected.Country}")" Class="modal-wide" Close="() => _selected = null">
+        <img class="modal-cover" src="@Display.Image(_selected)" alt="" /><p class="destination-description">@_selected.Description</p>
+        @if (_loading) { <p class="notice" role="status">Pobieram miejsca z OpenStreetMap…</p> }
+        @if (_placeError is not null) { <div class="notice error">@_placeError <button class="text-link" @onclick="LoadPlaces">Spróbuj ponownie</button></div> }
+        <div class="section-heading compact"><h3>Miejsca warte odkrycia</h3><span class="muted">@_selected.Attractions.Length miejsc</span></div>
+        <div class="attraction-grid">@foreach (var place in _selected.Attractions.Take(18))
+        { <div class="attraction-item"><span class="stat-icon mint"><Icon Name="pin" Size="18" /></span><div><strong>@place.Name</strong><p>@place.Description</p><a class="text-link" href="@TravelLinks.GoogleMaps(place.Name, place.Location)" target="_blank" rel="noopener noreferrer">Mapy Google ↗</a></div></div> }</div>
+        @if (_selected.RetrievedAt is not null) { <p class="footnote">© OpenStreetMap contributors · pobrano @_selected.RetrievedAt.Value.ToLocalTime().ToString("g", Display.Polish). Godziny i ceny sprawdź przed wizytą.</p> }
+        <button class="button primary full-width" @onclick="() => _newTrip = true"><Icon Name="plus" Size="18" />Zaplanuj podróż · @_selected.Name</button>
+    </Modal>
+}
+@if (_newTrip) { <NewTripForm DestinationId="@_selected?.Id" InitialDays="@(_results is null ? null : _days)" InitialPace="@(_results is null ? null : _pace)" InitialDailyBudget="@(_results is null ? null : _budget)" Close="() => _newTrip = false" /> }
+@code {
+    [SupplyParameterFromQuery(Name = "quiz")] public bool Quiz { get; set; }
+    [SupplyParameterFromQuery(Name = "destination")] public string? DestinationId { get; set; }
+    private bool _quiz, _newTrip, _loading, _quizOpened;
+    private string? _loadedId, _error, _placeError, _quizError;
+    private int _step, _days = 5, _month = DateTime.Today.Month;
+    private decimal _budget = 400;
+    private string _region = "";
+    private TravelPace _pace = TravelPace.Balanced;
+    private TravelStyle _style = TravelStyle.Culture;
+    private Destination? _selected;
+    private IReadOnlyList<DestinationRecommendation>? _results;
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Quiz && !_quizOpened) { _quizOpened = true; OpenQuiz(); }
+        if (DestinationId is not null && DestinationId != _loadedId)
+        {
+            _loadedId = DestinationId;
+            try { await SelectCity(await Data.GetCityAsync(DestinationId)); }
+            catch (Exception ex) when (ex is DomainException or HttpRequestException) { _error = ex.Message; }
+        }
+    }
+    private async Task SelectCity(Destination city) { _selected = city; await LoadPlaces(); }
+    private async Task LoadPlaces()
+    {
+        if (_selected is null) return;
+        var selectedId = _selected.Id;
+        _loading = true; _placeError = null;
+        try { var enriched = await Data.EnrichAsync(_selected); if (_selected?.Id == selectedId) _selected = enriched; }
+        catch (Exception ex) when (ex is DomainException or JSException) { _placeError = ex.Message; }
+        finally { _loading = false; }
+    }
+    private void OpenQuiz() { _quiz = true; _step = 0; _quizError = null; }
+    private void Next()
+    {
+        _quizError = null;
+        if (_days is < 1 or > 30) { _quizError = "Wybierz od 1 do 30 dni."; return; }
+        if (_step < 2) { _step++; return; }
+        _results = Recommendations.Recommend(new(_budget, _days, _pace, _style, _month, _region));
+        _quiz = false;
+    }
+}
+

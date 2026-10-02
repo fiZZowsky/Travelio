@@ -1,0 +1,17 @@
+@page "/preparation"
+@inject WorkspaceService Workspace
+<PageTitle>Przygotowania · Travelio</PageTitle>
+<PageHeader Eyebrow="RUSZAJ ZE SPOKOJNĄ GŁOWĄ" Title="Dobre przygotowanie to część przygody." Subtitle="Dokumenty, bagaż i rzeczy, o których łatwo zapomnieć." />
+@if (Workspace.Trips.Count > 0)
+{
+    <label class="trip-select">Przygotowania do podróży<select value="@SelectedId" @onchange="SelectTrip">@foreach (var trip in Workspace.Trips) { <option value="@trip.Trip.Id">@trip.Trip.Name</option> }</select></label>
+    @if (Workspace.Find(SelectedId) is { } selected) { <PreparationPanel Trip="selected" CanEdit="@(Workspace.Metadata(SelectedId)?.CanEdit == true)" Changed="Refresh" /> }
+}
+else { <div class="empty-state"><Icon Name="checklist" Size="45" /><h2>Najpierw wybierz swoją przygodę</h2><p>Do każdej podróży przygotujemy osobną listę.</p><a class="button primary" href="/trips">Zaplanuj podróż</a></div> }
+@code {
+    private Guid _selected;
+    private Guid SelectedId => Workspace.Trips.Any(x => x.Trip.Id == _selected) ? _selected : Workspace.Trips.FirstOrDefault()?.Trip.Id ?? Guid.Empty;
+    private void SelectTrip(ChangeEventArgs args) { if (Guid.TryParse(args.Value?.ToString(), out var id)) _selected = id; }
+    private void Refresh() => StateHasChanged();
+}
+

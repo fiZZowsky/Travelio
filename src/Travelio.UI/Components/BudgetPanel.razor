@@ -1,0 +1,56 @@
+@inject IBudgetService Budgets
+@inject WorkspaceService Workspace
+@inject IJSRuntime JS
+@{ var summary = Budgets.Analyze(Trip); }
+<div class="budget-overview"><div class="panel budget-total"><span class="eyebrow">TWÓJ BUDŻET PODRÓŻY</span><h2>@Display.Money(summary.Spent) <small>/ @Display.Money(summary.Budget)</small></h2><div class="budget-meter"><span class="@(summary.Remaining < 0 ? "over-budget" : "")" style="@($"width:{Math.Clamp(summary.Spent / Math.Max(1, summary.Budget) * 100, 0, 100).ToString(CultureInfo.InvariantCulture)}%")"></span></div><p class="@(summary.Remaining < 0 ? "danger-text" : "")">@(summary.Remaining < 0 ? "Przekroczenie budżetu" : "Pozostało na małe przyjemności"): <strong>@Display.Money(Math.Abs(summary.Remaining))</strong></p><div class="budget-mini-stats"><div><small>Na osobę</small><strong>@Display.Money(summary.PerPerson)</strong></div><div><small>Na dzień wyjazdu</small><strong>@Display.Money(summary.PerDay)</strong></div></div></div><div class="panel"><h3>Gdzie płyną Twoje pieniądze?</h3>@foreach (var c in summary.Categories.OrderByDescending(x => x.Value)) { <div class="category-row"><span>@Display.Category(c.Key)</span><strong>@Display.Money(c.Value)</strong><div class="category-bar"><span style="@($"width:{(c.Value / Math.Max(1, summary.Spent) * 100).ToString(CultureInfo.InvariantCulture)}%")"></span></div></div> }@if (Trip.Expenses.Count == 0) { <p class="muted">Dodaj pierwszy wydatek, aby zobaczyć podział kosztów.</p> }</div></div>
+<div class="section-heading"><h2>Wydatki <span class="count-badge">@Trip.Expenses.Count</span></h2><div class="button-row"><button class="button secondary small" @onclick="Export"><Icon Name="download" Size="16" />CSV</button>@if (CanEdit) { <button class="button primary small" @onclick="AddExpense"><Icon Name="plus" Size="16" />Dodaj wydatek</button> }</div></div>
+<div class="panel table-container"><table><thead><tr><th>Wydatek</th><th>Kategoria</th><th>Data</th><th>Zapłacił(a)</th><th class="align-right">Kwota (PLN)</th>@if (CanEdit) { <th>Akcje</th> }</tr></thead><tbody>@foreach (var expense in Trip.Expenses.OrderByDescending(x => x.Date)) { <tr><td><strong>@expense.Description</strong>@if (expense.Currency != "PLN") { <small>@expense.Amount @expense.Currency · kurs @expense.RateToPln</small> }</td><td>@Display.Category(expense.Category)</td><td>@Display.Date(expense.Date)</td><td>@expense.PaidBy</td><td class="align-right"><strong>@Display.Money(expense.AmountPln)</strong></td>@if (CanEdit) { <td><div class="button-row"><button class="text-link" @onclick="() => EditExpense(expense)">Edytuj</button><button class="text-link danger-text" @onclick="() => _deleting = expense">Usuń</button></div></td> }</tr> }</tbody></table>@if (Trip.Expenses.Count == 0) { <div class="empty-state"><p>Tu zacznie się historia Twoich wydatków.</p></div> }</div>
+@if (Trip.Expenses.Count > 0)
+{
+    <div class="panel settlement"><h3>Prosty podział kosztów</h3><p class="muted">Równy udział to @Display.Money(summary.PerPerson) na osobę (@Trip.Travelers os.). Kwoty poniżej pokazują wpłaty zapisanych płatników.</p><div class="settlement-people">@foreach (var payer in Trip.Expenses.GroupBy(x => x.PaidBy)) { <div><span class="avatar avatar-small">@(string.IsNullOrWhiteSpace(payer.Key) ? "?" : payer.Key[..1].ToUpperInvariant())</span><span>@payer.Key</span><strong>@Display.Money(payer.Sum(x => x.AmountPln))</strong></div> }</div></div>
+}
+@if (_adding) { <ExpenseEditor Trip="Trip" Expense="_editing" Close="() => _adding = false" Saved="ExpenseSaved" /> }
+@if (_error is not null) { <div class="notice error" role="alert">@_error</div> }
+@if (_deleting is not null)
+{
+    <Modal Title="Usunąć wydatek?" Close="() => _deleting = null">
+        <p>@_deleting.Description · @Display.Money(_deleting.AmountPln)</p>
+        <div class="form-actions"><button class="button secondary" @onclick="() => _deleting = null">Anuluj</button><button class="button danger" @onclick="DeleteExpense">Usuń wydatek</button></div>
+    </Modal>
+}
+@code {
+    [Parameter, EditorRequired] public Trip Trip { get; set; } = default!;
+    [Parameter] public bool CanEdit { get; set; } = true;
+    [Parameter] public EventCallback Changed { get; set; }
+    private bool _adding;
+    private Expense? _editing, _deleting;
+    private string? _error;
+    private void AddExpense() { _editing = null; _adding = true; }
+    private void EditExpense(Expense expense) { _editing = expense; _adding = true; }
+    private async Task DeleteExpense()
+    {
+        try
+        {
+            var current = Workspace.Find(Trip.Id) ?? throw new DomainException("Podróż nie jest już dostępna.");
+            current.Expenses.RemoveAll(x => x.Id == _deleting!.Id);
+            await Workspace.SaveAsync(current);
+            _deleting = null; _error = null;
+            await Changed.InvokeAsync();
+        }
+        catch (DomainException ex) { _error = ex.Message; }
+        catch (Exception ex) when (ex is JSException or IOException) { _error = "Nie można zapisać zmiany. Wydatek pozostał w pamięci."; }
+    }
+    private async Task ExpenseSaved() { _adding = false; await Changed.InvokeAsync(); }
+    private async Task Export()
+    {
+        static string Csv(string value)
+        {
+            if (value.Length > 0 && "=+-@\t\r".Contains(value[0])) value = "'" + value;
+            return "\"" + value.Replace("\"", "\"\"") + "\"";
+        }
+        var rows = new List<string> { "Opis;Kategoria;Data;Płatnik;Kwota;Waluta;Kurs PLN;Wartość PLN" };
+        rows.AddRange(Trip.Expenses.Select(e => string.Join(";", Csv(e.Description), Csv(Display.Category(e.Category)), e.Date.ToString("yyyy-MM-dd"), Csv(e.PaidBy), e.Amount.ToString(CultureInfo.InvariantCulture), e.Currency, e.RateToPln.ToString(CultureInfo.InvariantCulture), e.AmountPln.ToString(CultureInfo.InvariantCulture))));
+        await JS.InvokeVoidAsync("travelio.download", $"travelio-wydatki-{Trip.Id}.csv", "\uFEFF" + string.Join("\r\n", rows), "text/csv;charset=utf-8");
+    }
+}
+

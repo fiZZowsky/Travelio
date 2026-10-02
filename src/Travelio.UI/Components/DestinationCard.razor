@@ -1,0 +1,9 @@
+<a href="@($"/discover?destination={Destination.Id}")" class="destination-card">
+    <div class="destination-image"><img src="@Display.Image(Destination)" alt="@($"{Destination.Name}, {Destination.Country}")" loading="lazy" /><span class="destination-tag">@Tag</span><span class="destination-go"><Icon Name="arrow" Size="19" /></span></div>
+    <div class="destination-info"><div><h3>@Destination.Name</h3><span><Icon Name="pin" Size="13" />@Destination.Country</span></div><div class="destination-price"><Icon Name="arrow" Size="20" /></div></div>
+</a>
+@code {
+    [Parameter, EditorRequired] public Destination Destination { get; set; } = default!;
+    [Parameter] public string Tag { get; set; } = "Warto odkryć";
+}
+
