@@ -1,3 +1,4 @@
+using Travelio.Application.Localization;
 using System.Net;
 using System.Text.Json;
 using Travelio.Application;
@@ -39,14 +40,14 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
     public bool IsOnline { get; private set; }
     public bool DeviceOnline { get; private set; } = true;
     public bool ConnectionChecked { get; private set; }
-    public string ConnectionLabel => !DeviceOnline ? "Offline · zapis lokalny" : !ConnectionChecked ? "Sprawdzam połączenie…" :
-        !IsOnline ? "Serwer niedostępny" : User is null ? "Gość · zapis lokalny" : !SessionValid ? "Zaloguj się ponownie" :
-        IsSyncing ? "Synchronizacja…" : PendingCount > 0 ? "Zmiany zapisane lokalnie" : "Połączono z kontem";
+    public string ConnectionLabel => !DeviceOnline ? L.T("Offline · zapis lokalny") : !ConnectionChecked ? L.T("Sprawdzam połączenie…") :
+        !IsOnline ? L.T("Serwer niedostępny") : User is null ? L.T("Gość · zapis lokalny") : !SessionValid ? L.T("Zaloguj się ponownie") :
+        IsSyncing ? L.T("Synchronizacja…") : PendingCount > 0 ? L.T("Zmiany zapisane lokalnie") : L.T("Połączono z kontem");
     private string UnavailableStatus => DeviceOnline
-        ? "Serwer Travelio jest niedostępny. Możesz nadal planować i zapisywać zmiany na urządzeniu."
-        : "Urządzenie zgłasza brak sieci. Zapisane plany, wydatki i kraje są dostępne offline.";
+        ? L.T("Serwer Travelio jest niedostępny. Możesz nadal planować i zapisywać zmiany na urządzeniu.")
+        : L.T("Urządzenie zgłasza brak sieci. Zapisane plany, wydatki i kraje są dostępne offline.");
     public bool IsSyncing { get; private set; }
-    public string Status { get; private set; } = "Gość · zapis lokalny · zaloguj się, aby synchronizować";
+    public string Status { get; private set; } = L.T("Gość · zapis lokalny · zaloguj się, aby synchronizować");
     public IReadOnlyList<LocalTrip> Trips => _data.Trips.Where(x => !x.Trip.IsDeleted).ToArray();
     public IReadOnlyList<string> Countries => _data.Countries;
     public int PendingCount => _data.Trips.Count(x => x.Pending) + _data.CountryChanges.Count;
@@ -76,9 +77,9 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
             if (current is not null && current.Id != User?.Id)
                 await SwitchUserAsync(current);
             else if (User is not null && current is null)
-                Status = "Zaloguj się ponownie · dane lokalne są dostępne";
+                Status = L.T("Zaloguj się ponownie · dane lokalne są dostępne");
             else if (current is null)
-                Status = "Serwer dostępny · plany gościa zapisujemy na urządzeniu";
+                Status = L.T("Serwer dostępny · plany gościa zapisujemy na urządzeniu");
             if (SessionValid) await SyncAsync();
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
@@ -119,16 +120,16 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
         {
             var existing = Metadata(trip.Id);
             if (expectedVersion is not null && existing?.Version != expectedVersion)
-                throw new DomainException("Ta podróż została zaktualizowana w tle. Wczytaj zapisaną wersję, zanim ponownie zapiszesz zmiany.");
-            if (existing is not null && !existing.CanEdit) throw new DomainException("Masz dostęp tylko do odczytu.");
+                throw new DomainException(L.T("Ta podróż została zaktualizowana w tle. Wczytaj zapisaną wersję, zanim ponownie zapiszesz zmiany."));
+            if (existing is not null && !existing.CanEdit) throw new DomainException(L.T("Masz dostęp tylko do odczytu."));
             if (trip.IsDeleted && existing is not null && !existing.IsOwner)
-                throw new DomainException("Tylko właściciel może usunąć podróż.");
+                throw new DomainException(L.T("Tylko właściciel może usunąć podróż."));
             var snapshot = Copy(_data);
             if (existing is null) _data.Trips.Insert(0, new() { Trip = Copy(trip), Pending = true });
             else { existing.Trip = Copy(trip); existing.Pending = true; }
             try { await PersistAsync(); }
             catch { _data = snapshot; throw; }
-            Status = User is null ? "Gość · zapisano na urządzeniu" : "Zapisano lokalnie · oczekuje na synchronizację";
+            Status = User is null ? L.T("Gość · zapisano na urządzeniu") : L.T("Zapisano lokalnie · oczekuje na synchronizację");
         }
         finally { _gate.Release(); }
         Changed?.Invoke();
@@ -157,7 +158,7 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
         {
             if (register) await api.RegisterAsync(email.Trim(), password);
             await api.LoginAsync(email.Trim(), password);
-            var user = await api.GetUserAsync() ?? throw new DomainException("Sesja nie została zapisana. Zezwól na pliki cookie dla Travelio i spróbuj ponownie.");
+            var user = await api.GetUserAsync() ?? throw new DomainException(L.T("Sesja nie została zapisana. Zezwól na pliki cookie dla Travelio i spróbuj ponownie."));
             await SwitchUserAsync(user);
             SessionValid = true;
             IsOnline = true;
@@ -176,7 +177,7 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
             await store.SetAsync("travelio.user", user);
             User = user;
             _data = next;
-            Status = "Konto połączone";
+            Status = L.T("Konto połączone");
         }
         finally { _gate.Release(); }
         Changed?.Invoke();
@@ -184,7 +185,7 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
 
     public async Task LogoutAsync()
     {
-        if (PendingCount > 0) throw new DomainException("Najpierw zsynchronizuj zmiany lub wyeksportuj dane. Wylogowanie usuwa lokalną kopię konta.");
+        if (PendingCount > 0) throw new DomainException(L.T("Najpierw zsynchronizuj zmiany lub wyeksportuj dane. Wylogowanie usuwa lokalną kopię konta."));
         await api.LogoutAsync();
         await _gate.WaitAsync();
         try
@@ -194,7 +195,7 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
             User = null;
             SessionValid = false;
             _data = await store.GetAsync<Workspace>(Key) ?? new Workspace();
-            Status = "Wylogowano · tryb lokalny";
+            Status = L.T("Wylogowano · tryb lokalny");
         }
         finally { _gate.Release(); }
         Changed?.Invoke();
@@ -202,14 +203,14 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
 
     public async Task SyncAsync()
     {
-        if (User is null) { Status = IsOnline ? "Plany gościa zapisujemy na urządzeniu. Konto umożliwia synchronizację." : UnavailableStatus; Changed?.Invoke(); return; }
+        if (User is null) { Status = IsOnline ? L.T("Plany gościa zapisujemy na urządzeniu. Konto umożliwia synchronizację.") : UnavailableStatus; Changed?.Invoke(); return; }
         if (!await _gate.WaitAsync(0)) return;
         IsSyncing = true;
         Changed?.Invoke();
         try
         {
             var current = await api.GetUserAsync();
-            if (current?.Id != User.Id) throw new ApiException(HttpStatusCode.Unauthorized, "Zaloguj się ponownie do tego konta, aby synchronizować.");
+            if (current?.Id != User.Id) throw new ApiException(HttpStatusCode.Unauthorized, L.T("Zaloguj się ponownie do tego konta, aby synchronizować."));
             SessionValid = true;
             foreach (var local in _data.Trips.Where(x => x.Pending && x.Conflict is null).ToList())
             {
@@ -267,8 +268,8 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
             }
             await PersistAsync();
             IsOnline = true;
-            Status = HasConflicts ? "Wybierz wersję podróży · wykryto konflikt" :
-                PendingCount > 0 ? "Pozostały zmiany lokalne · synchronizuj ponownie" : "Wszystko zsynchronizowane";
+            Status = HasConflicts ? L.T("Wybierz wersję podróży · wykryto konflikt") :
+                PendingCount > 0 ? L.T("Pozostały zmiany lokalne · synchronizuj ponownie") : L.T("Wszystko zsynchronizowane");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         { IsOnline = false; Status = UnavailableStatus; }
@@ -309,13 +310,13 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
 
     public async Task<int> ImportGuestAsync()
     {
-        if (User is null) throw new DomainException("Najpierw zaloguj się na konto.");
+        if (User is null) throw new DomainException(L.T("Najpierw zaloguj się na konto."));
         return await ImportAsync(await store.GetAsync<Workspace>("travelio.v1.guest") ?? new Workspace());
     }
 
     public async Task<int> ImportJsonAsync(string json)
     {
-        if (json.Length > 5 * 1024 * 1024) throw new DomainException("Kopia może mieć maksymalnie 5 MB.");
+        if (json.Length > 5 * 1024 * 1024) throw new DomainException(L.T("Kopia może mieć maksymalnie 5 MB."));
         try
         {
             using var document = JsonDocument.Parse(json);
@@ -326,14 +327,14 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
             return await ImportAsync(new Workspace { Trips = [new LocalTrip { Trip = trip }] });
         }
         catch (Exception ex) when (ex is JsonException or NotSupportedException)
-        { throw new DomainException("Ten plik nie jest poprawną kopią danych Travelio."); }
+        { throw new DomainException(L.T("Ten plik nie jest poprawną kopią danych Travelio.")); }
     }
 
     private async Task<int> ImportAsync(Workspace source)
     {
         if (source.Trips is null || source.Countries is null || source.Trips.Count > 200 || source.Countries.Count > 250 ||
             source.Trips.Any(x => x?.Trip is null) || source.Countries.Any(c => c is not { Length: 2 } || c.Any(ch => ch is < 'A' or > 'Z')))
-            throw new DomainException("Kopia ma niepoprawną strukturę lub przekracza limit 200 podróży.");
+            throw new DomainException(L.T("Kopia ma niepoprawną strukturę lub przekracza limit 200 podróży."));
         // Validate the entire backup before changing any current data.
         foreach (var item in source.Trips) TripValidator.Validate(item.Trip, catalog);
         await _gate.WaitAsync();
@@ -352,7 +353,7 @@ public sealed class WorkspaceService(ILocalStore store, ApiClient api, IDestinat
             foreach (var code in source.Countries.Except(_data.Countries).ToArray())
             { _data.Countries.Add(code); _data.CountryChanges[code] = true; }
             await PersistAsync();
-            Status = "Przywrócono kopię na urządzeniu. Istniejące plany pozostały bez zmian.";
+            Status = L.T("Przywrócono kopię na urządzeniu. Istniejące plany pozostały bez zmian.");
         }
         catch { _data = before; throw; }
         finally { _gate.Release(); }

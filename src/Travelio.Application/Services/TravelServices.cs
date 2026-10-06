@@ -1,4 +1,5 @@
 using Travelio.Domain;
+using Travelio.Application.Localization;
 
 namespace Travelio.Application.Services;
 
@@ -32,7 +33,7 @@ public sealed class PreparationService : IPreparationService
 
     public IReadOnlyList<PreparationAdvice> GetAdvice(Destination destination) =>
     [
-        new("Dokumenty i zasady wjazdu", $"Sprawdź aktualne warunki wjazdu do kraju: {destination.Country}. Zależą od obywatelstwa, trasy i długości pobytu.", "https://www.gov.pl/web/dyplomacja/informacje-dla-podrozujacych"),
+        new("Dokumenty i zasady wjazdu", L.F($"Sprawdź aktualne warunki wjazdu do kraju: {L.T(destination.Country)}. Zależą od obywatelstwa, trasy i długości pobytu."), "https://www.gov.pl/web/dyplomacja/informacje-dla-podrozujacych"),
         new("Zdrowie przed podróżą", "Zalecenia i ewentualne wymogi szczepień zależą od trasy oraz sytuacji zdrowotnej. Skonsultuj plan wyjazdu z poradnią medycyny podróży.", "https://www.who.int/health-topics/travel-and-health"),
         new("Plan na nieprzewidziane sytuacje", "Zapisz kontakt do ubezpieczyciela i najbliższej placówki konsularnej. Udostępnij bliskiej osobie plan wyjazdu.", "https://odyseusz.msz.gov.pl/")
     ];
@@ -49,7 +50,8 @@ public sealed class ScheduleMonitor : IScheduleMonitor
             // Skip nonexistent wall times during DST transitions.
             if (timezone.IsInvalidTime(local)) return null;
             var utc = TimeZoneInfo.ConvertTimeToUtc(local, timezone);
-            return new Reminder(stop.Id, $"Sprawdź plan: {stop.Title}", new DateTimeOffset(utc).AddMinutes(15));
+            var title = stop.LocalizedNames?.Values.Contains(stop.Title) == true ? L.Name(stop.Title, stop.LocalizedNames) : L.T(stop.Title);
+            return new Reminder(stop.Id, L.F($"Sprawdź plan: {title}"), new DateTimeOffset(utc).AddMinutes(15));
         })).Where(x => x is not null && x.DueAt > now.AddMinutes(-30) && x.DueAt < now.AddDays(30))
            .Select(x => x!).OrderBy(x => x.DueAt).Take(60).ToArray();
     }

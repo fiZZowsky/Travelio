@@ -35,7 +35,7 @@ public sealed class ReminderCoordinator(WorkspaceService workspace, IDestination
             if (!_enabled) return;
             var reminders = workspace.Trips.SelectMany(x => monitor.GetReminders(x.Trip,
                 catalog.Resolve(x.Trip), DateTimeOffset.UtcNow)).OrderBy(x => x.DueAt).Take(60).ToArray();
-            var fingerprint = string.Join("|", reminders.Select(x => $"{x.StopId}:{x.DueAt:O}"));
+            var fingerprint = string.Join("|", reminders.Select(x => $"{x.StopId}:{x.DueAt:O}:{x.Title}"));
             if (_fingerprint == fingerprint) return;
             await notifications.CancelAsync();
             await notifications.ScheduleAsync(reminders);

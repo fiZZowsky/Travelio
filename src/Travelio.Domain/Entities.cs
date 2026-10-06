@@ -55,6 +55,9 @@ public sealed class PlanStop : Entity
     public decimal? EstimatedCostPln { get; set; }
     public string? SourceUrl { get; set; }
     public string? OpeningHours { get; set; }
+    public Dictionary<string, string>? LocalizedNames { get; set; }
+    public string? OriginalTitle { get; set; }
+    public VisitDuration? VisitDuration { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public bool Completed { get; set; }
@@ -83,9 +86,12 @@ public sealed class PackingItem : Entity
 }
 
 public sealed record Coordinate(double Latitude, double Longitude);
+public enum VisitDurationBasis { CategoryEstimate, SourceRecommendation, UserEstimate }
+public sealed record VisitDuration(int Minutes, VisitDurationBasis Basis, string? SourceUrl = null, DateTimeOffset? CheckedAt = null);
 public sealed record Attraction(string Id, string Name, string Description, TravelStyle Style,
     Coordinate Location, int DurationMinutes, decimal? CostPln, TimeOnly OpensAt, TimeOnly ClosesAt,
-    string? SourceUrl = null, string? OpeningHours = null);
+    string? SourceUrl = null, string? OpeningHours = null,
+    Dictionary<string, string>? LocalizedNames = null, string? OriginalName = null, string? WikidataId = null, VisitDuration? VisitDuration = null);
 public sealed record Destination(string Id, string Name, string Country, string CountryCode,
     string Region, string Description, string TimeZoneId, decimal DailyBudgetPln,
     Coordinate Location, string Image, TravelStyle[] Styles, int[] BestMonths, Attraction[] Attractions,

@@ -31,6 +31,7 @@ public static class TripValidator
         var stops = trip.Itinerary.SelectMany(x => x.Stops).ToList();
         if (stops.Select(x => x.Id).Distinct().Count() != stops.Count || stops.Any(x =>
                 x.Id == Guid.Empty || string.IsNullOrWhiteSpace(x.Title) || x.Title.Length > 200 ||
+                !ValidNames(x.LocalizedNames) || !ValidDuration(x.VisitDuration) || x.OriginalTitle?.Length > 200 ||
                 x.DurationMinutes is < 1 or > 720 || x.TravelMinutes is < 0 or > 720 ||
                 x.EstimatedCostPln is < 0 or > 1_000_000 || !double.IsFinite(x.Latitude) ||
                 !double.IsFinite(x.Longitude) || x.Latitude is < -90 or > 90 || x.Longitude is < -180 or > 180))
@@ -55,7 +56,8 @@ public static class TripValidator
             destination.Location is null || !ValidCoordinate(destination.Location) ||
             destination.Attractions is null || destination.Attractions.Length > 200 ||
             destination.Attractions.Any(a => a is null || a.Location is null || !ValidCoordinate(a.Location) ||
-                string.IsNullOrWhiteSpace(a.Name) || a.Name.Length > 200 || a.DurationMinutes is < 1 or > 720))
+                string.IsNullOrWhiteSpace(a.Name) || a.Name.Length > 200 || a.DurationMinutes is < 1 or > 720 ||
+                !ValidNames(a.LocalizedNames) || !ValidDuration(a.VisitDuration) || a.OriginalName?.Length > 200))
             throw new DomainException("Nieprawidłowe dane kierunku.");
         try { TimeZoneInfo.FindSystemTimeZoneById(destination.TimeZoneId); }
         catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException or ArgumentException)
@@ -63,5 +65,11 @@ public static class TripValidator
     }
     public static bool ValidCoordinate(Coordinate c) => double.IsFinite(c.Latitude) && double.IsFinite(c.Longitude)
         && c.Latitude is >= -90 and <= 90 && c.Longitude is >= -180 and <= 180;
+    private static bool ValidNames(Dictionary<string, string>? names) => names is null ||
+        (names.Count <= 2 && names.All(x => x.Key is "pl" or "en" && !string.IsNullOrWhiteSpace(x.Value) && x.Value.Length <= 200));
+    private static bool ValidDuration(VisitDuration? duration) => duration is null ||
+        (duration.Minutes is >= 1 and <= 720 && Enum.IsDefined(duration.Basis) &&
+        (duration.SourceUrl is null || duration.SourceUrl.Length <= 1000 &&
+        Uri.TryCreate(duration.SourceUrl, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http"));
 }
 

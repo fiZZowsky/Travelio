@@ -1,3 +1,4 @@
+using Travelio.Application.Localization;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Antiforgery;
@@ -26,13 +27,13 @@ public static class ApiEndpoints
         data.MapGet("/search", (string q, double lat, double lon, ITravelDataProvider p, CancellationToken ct) => p.SearchPlacesAsync(q, new(lat, lon), ct));
         data.MapGet("/route", (string points, ITravelDataProvider p, CancellationToken ct) =>
         {
-            if (points.Length > 2000) throw new DomainException("Za długa trasa.");
+            if (points.Length > 2000) throw new DomainException(L.T("Za długa trasa."));
             var coordinates = points.Split(';').Select(pair =>
             {
                 var values = pair.Split(',');
                 if (values.Length != 2 || !double.TryParse(values[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat)
                     || !double.TryParse(values[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lon))
-                    throw new DomainException("Nieprawidłowa trasa.");
+                    throw new DomainException(L.T("Nieprawidłowa trasa."));
                 return new Coordinate(lat, lon);
             }).ToArray();
             return p.GetRouteAsync(coordinates, ct);
@@ -46,19 +47,19 @@ public static class ApiEndpoints
             if (string.IsNullOrWhiteSpace(request.Email) || request.Email.Length > 254 ||
                 !System.Net.Mail.MailAddress.TryCreate(request.Email, out var address) || address.Address != request.Email ||
                 string.IsNullOrEmpty(request.Password) || request.Password.Length > 128)
-                return Results.BadRequest(new ApiError("Podaj poprawny e-mail i hasło (10–128 znaków, duża i mała litera oraz cyfra)."));
+                return Results.BadRequest(new ApiError(L.T("Podaj poprawny e-mail i hasło (10–128 znaków, duża i mała litera oraz cyfra).")));
             var user = new IdentityUser { UserName = request.Email, Email = request.Email };
             var result = await users.CreateAsync(user, request.Password);
             return result.Succeeded ? Results.Ok() : Results.BadRequest(new ApiError(
-                "Nie udało się utworzyć konta. Sprawdź e-mail i hasło (minimum 10 znaków, duża i mała litera oraz cyfra)."));
+                L.T("Nie udało się utworzyć konta. Sprawdź e-mail i hasło (minimum 10 znaków, duża i mała litera oraz cyfra).")));
         }).RequireRateLimiting("auth");
         auth.MapPost("/login", async (LoginRequest request, SignInManager<IdentityUser> signIn) =>
         {
             if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password) || request.Password.Length > 128)
-                return Results.BadRequest(new ApiError("Podaj e-mail i hasło."));
+                return Results.BadRequest(new ApiError(L.T("Podaj e-mail i hasło.")));
             var result = await signIn.PasswordSignInAsync(request.Email, request.Password, false, true);
             return result.Succeeded ? Results.Ok() : Results.Json(new ApiError(
-                "Nieprawidłowe dane logowania lub konto jest czasowo zablokowane."), statusCode: 401);
+                L.T("Nieprawidłowe dane logowania lub konto jest czasowo zablokowane.")), statusCode: 401);
         }).RequireRateLimiting("auth");
         auth.MapPost("/logout", async (SignInManager<IdentityUser> signIn) => { await signIn.SignOutAsync(); return Results.Ok(); });
         auth.MapGet("/me", (ClaimsPrincipal user) =>
@@ -88,11 +89,11 @@ public static class ApiEndpoints
             var trip = await db.Trips.FirstOrDefaultAsync(x => x.Id == id && x.OwnerId == UserId(user), ct);
             if (trip is null) return Results.NotFound();
             if (!Enum.IsDefined(request.Role) || string.IsNullOrWhiteSpace(request.Email))
-                return Results.BadRequest(new ApiError("Podaj e-mail i prawidłową rolę."));
+                return Results.BadRequest(new ApiError(L.T("Podaj e-mail i prawidłową rolę.")));
             var normalized = request.Email.Trim().ToUpperInvariant();
             var account = await db.Users.FirstOrDefaultAsync(x => x.NormalizedEmail == normalized, ct);
-            if (account is null) return Results.BadRequest(new ApiError("Uczestnik musi najpierw założyć konto Travelio."));
-            if (account.Id == trip.OwnerId) return Results.BadRequest(new ApiError("Jesteś już właścicielem tej podróży."));
+            if (account is null) return Results.BadRequest(new ApiError(L.T("Uczestnik musi najpierw założyć konto Travelio.")));
+            if (account.Id == trip.OwnerId) return Results.BadRequest(new ApiError(L.T("Jesteś już właścicielem tej podróży.")));
             var member = await db.Members.FindAsync([id, account.Id], ct);
             if (member is null) { member = new() { TripId = id, UserId = account.Id }; db.Members.Add(member); }
             member.CanEdit = request.Role == ParticipantRole.Editor;
@@ -116,15 +117,15 @@ public static class ApiEndpoints
         {
             if (request.Countries is null || request.Countries.Count > 250 ||
                 request.Countries.Any(x => x is null || x.Length != 2 || x.Any(c => c is < 'A' or > 'Z')))
-                return Results.BadRequest(new ApiError("Nieprawidłowe kody krajów."));
+                return Results.BadRequest(new ApiError(L.T("Nieprawidłowe kody krajów.")));
             var id = UserId(user);
             var record = await db.Passports.FirstOrDefaultAsync(x => x.UserId == id, ct);
-            if ((record?.Version ?? 0) != request.ExpectedVersion) return Results.Conflict(new ApiError("Paszport zmienił się na innym urządzeniu. Spróbuj ponownie."));
+            if ((record?.Version ?? 0) != request.ExpectedVersion) return Results.Conflict(new ApiError(L.T("Paszport zmienił się na innym urządzeniu. Spróbuj ponownie.")));
             if (record is null) { record = new() { UserId = id }; db.Passports.Add(record); }
             record.CountriesJson = JsonSerializer.Serialize(request.Countries.Distinct().Order().ToArray());
             record.Version++;
             try { await db.SaveChangesAsync(ct); }
-            catch (DbUpdateException) { return Results.Conflict(new ApiError("Wykryto równoczesną zmianę paszportu.")); }
+            catch (DbUpdateException) { return Results.Conflict(new ApiError(L.T("Wykryto równoczesną zmianę paszportu."))); }
             return Results.Ok(new PassportEnvelope(request.Countries.Distinct().ToList(), record.Version));
         });
         app.MapGet("/api/{**path}", () => Results.NotFound(new ApiError("Nie znaleziono endpointu.")));
@@ -134,7 +135,7 @@ public static class ApiEndpoints
         ClaimsPrincipal user, IDestinationCatalog catalog, CancellationToken ct)
     {
         if (request.Trip is null || id != request.Trip.Id || request.ExpectedVersion < 0)
-            return Results.BadRequest(new ApiError("Nieprawidłowy identyfikator lub wersja podróży."));
+            return Results.BadRequest(new ApiError(L.T("Nieprawidłowy identyfikator lub wersja podróży.")));
         TripValidator.Validate(request.Trip, catalog);
         var owner = UserId(user);
         var record = await db.Trips.Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == id, ct);

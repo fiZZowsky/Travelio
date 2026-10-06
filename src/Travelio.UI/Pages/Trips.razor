@@ -1,15 +1,15 @@
 @page "/trips"
 @inject WorkspaceService Workspace
 @inject IDestinationCatalog Catalog
-<PageTitle>Moje podróże · Travelio</PageTitle>
-<PageHeader Eyebrow="TWOJE PLANY, TWOJE WSPOMNIENIA" Title="Każda podróż ma swoją historię." Subtitle="Wszystkie szczegóły w jednym miejscu. Gotowe, kiedy Ty jesteś."><button class="button primary" @onclick="() => _new = true"><Icon Name="plus" Size="18" />Nowa podróż</button></PageHeader>
+<PageTitle>@L.T("Moje podróże · Travelio")</PageTitle>
+<PageHeader Eyebrow="@L.T("TWOJE PLANY, TWOJE WSPOMNIENIA")" Title="@L.T("Każda podróż ma swoją historię.")" Subtitle="@L.T("Wszystkie szczegóły w jednym miejscu. Gotowe, kiedy Ty jesteś.")"><button class="button primary" @onclick="() => _new = true"><Icon Name="plus" Size="18" />@L.T("Nowa podróż")</button></PageHeader>
 <div class="trip-grid">
     @foreach (var item in Workspace.Trips.OrderBy(x => x.Trip.StartDate))
     {
         var destination = Catalog.Resolve(item.Trip);
-        <a class="trip-card panel" href="@($"/trips/{item.Trip.Id}")"><div class="trip-card-image"><img src="@Display.Image(destination)" alt="@destination.Name" /><span class="pill">@(item.IsOwner ? "Moja podróż" : item.CanEdit ? "Współtworzysz" : "Do przeglądania")</span></div><div class="trip-card-body"><span class="eyebrow">@destination.Country.ToUpperInvariant()</span><h2>@item.Trip.Name</h2><p><Icon Name="calendar" Size="16" />@Display.Date(item.Trip.StartDate) – @Display.Date(item.Trip.EndDate) <span>· @item.Trip.Days dni</span></p><div class="trip-card-footer"><span><Icon Name="people" Size="16" />@item.Trip.Travelers os.</span><span>@Display.Money(item.Trip.Budget)</span><Icon Name="arrow" Size="18" /></div>@if (item.Conflict is not null) { <div class="conflict-label">Zmiany wymagają połączenia · sprawdź konto</div> }</div></a>
+        <a class="trip-card panel" href="@($"/trips/{item.Trip.Id}")"><div class="trip-card-image"><img src="@Display.Image(destination)" alt="@L.T(destination.Name)" /><span class="pill">@(item.IsOwner ? L.T("Moja podróż") : item.CanEdit ? L.T("Współtworzysz") : L.T("Do przeglądania"))</span></div><div class="trip-card-body"><span class="eyebrow">@L.T(destination.Country).ToUpperInvariant()</span><h2>@item.Trip.Name</h2><p><Icon Name="calendar" Size="16" />@Display.Date(item.Trip.StartDate) – @Display.Date(item.Trip.EndDate) <span>· @item.Trip.Days @L.T("dni")</span></p><div class="trip-card-footer"><span><Icon Name="people" Size="16" />@item.Trip.Travelers @L.T("os.")</span><span>@Display.Money(item.Trip.Budget)</span><Icon Name="arrow" Size="18" /></div>@if (item.Conflict is not null) { <div class="conflict-label">@L.T("Zmiany wymagają połączenia · sprawdź konto")</div> }</div></a>
     }
-    <button class="new-trip-card" @onclick="() => _new = true"><span class="stat-icon mint"><Icon Name="plus" Size="30" /></span><h3>A dokąd następnym razem?</h3><p>Zacznij planować kolejną przygodę.</p><span class="text-link">Dodaj podróż</span></button>
+    <button class="new-trip-card" @onclick="() => _new = true"><span class="stat-icon mint"><Icon Name="plus" Size="30" /></span><h3>@L.T("A dokąd następnym razem?")</h3><p>@L.T("Zacznij planować kolejną przygodę.")</p><span class="text-link">@L.T("Dodaj podróż")</span></button>
 </div>
 @if (_new) { <NewTripForm Close="() => _new = false" /> }
 @code { private bool _new; }

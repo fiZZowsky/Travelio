@@ -2,17 +2,17 @@
 @inject IJSRuntime JS
 @inject TravelDataClient Data
 <div class="route-map">
-    <div class="route-map-header"><span class="pill"><Icon Name="map" Size="15" />Twoja trasa piesza</span><span>@Stops.Count przystanków</span></div>
-    <div id="@_id" class="street-map" role="region" aria-label="Mapa trasy zwiedzania"></div>
+    <div class="route-map-header"><span class="pill"><Icon Name="map" Size="15" />@L.T("Twoja trasa piesza")</span><span>@Stops.Count @L.T("przystanków")</span></div>
+    <div id="@_id" class="street-map" role="region" aria-label="@L.T("Mapa trasy zwiedzania")"></div>
     <div class="route-map-footer"><small role="status">@_status</small></div>
-    @if (_failed && Stops.Count > 1) { <button class="button secondary small" @onclick="Retry">Wyznacz trasę ponownie</button> }
-    @if (Stops.Count > 0) { <a class="text-link map-directions" href="@GoogleRoute" target="_blank" rel="noopener noreferrer">Otwórz trasę w Mapach Google ↗</a> }
+    @if (_failed && Stops.Count > 1) { <button class="button secondary small" @onclick="Retry">@L.T("Wyznacz trasę ponownie")</button> }
+    @if (Stops.Count > 0) { <a class="text-link map-directions" href="@GoogleRoute" target="_blank" rel="noopener noreferrer">@L.T("Otwórz trasę w Mapach Google ↗")</a> }
 </div>
 @code {
     [Parameter] public IReadOnlyList<PlanStop> Stops { get; set; } = [];
     private readonly string _id = "route-" + Guid.NewGuid().ToString("N");
     private string? _rendered;
-    private string _status = "Przygotowuję mapę…";
+    private string _status = L.T("Przygotowuję mapę…");
     private bool _disposed, _failed;
     private int _revision;
     private string Fingerprint => string.Join(";", Stops.Select(x => $"{x.Id}:{x.Latitude}:{x.Longitude}:{x.Title}"));
@@ -21,24 +21,24 @@
         if (_disposed || _rendered == Fingerprint) return;
         _rendered = Fingerprint;
         var revision = ++_revision;
-        var stops = Stops.ToArray();
+        var stops = Stops.Select(x => new PlanStop { Id = x.Id, Title = Display.StopName(x), Latitude = x.Latitude, Longitude = x.Longitude }).ToArray();
         _failed = false;
         try
         {
             await JS.InvokeVoidAsync("travelio.maps.show", _id, stops, null);
-            _status = stops.Length < 2 ? "Wybierz co najmniej dwa miejsca, aby wyznaczyć trasę." : "Wyznaczam przejścia ulicami…";
+            _status = stops.Length < 2 ? L.T("Wybierz co najmniej dwa miejsca, aby wyznaczyć trasę.") : L.T("Wyznaczam przejścia ulicami…");
             StateHasChanged();
             if (stops.Length < 2) return;
             var route = await Data.RouteAsync(stops);
             if (_disposed || revision != _revision) return;
             await JS.InvokeVoidAsync("travelio.maps.show", _id, stops, route.Value.Geometry);
-            _status = $"{route.Value.Kilometers:N1} km · około {route.Value.Minutes} min pieszo · Valhalla / OSM" + (route.IsStale ? " · kopia offline" : "");
+            _status = L.F($"{route.Value.Kilometers:N1} km · około {route.Value.Minutes} min pieszo · Valhalla / OSM") + (route.IsStale ? " · kopia offline" : "");
         }
         catch (Exception ex) when (ex is DomainException or JSException)
         {
             if (revision != _revision || _disposed) return;
             _failed = true;
-            _status = "Nie udało się wyznaczyć trasy. Na mapie są lokalizacje punktów; możesz otworzyć trasę w Mapach Google.";
+            _status = L.T("Nie udało się wyznaczyć trasy. Na mapie są lokalizacje punktów; możesz otworzyć trasę w Mapach Google.");
         }
         if (!_disposed) StateHasChanged();
     }

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Travelio.Application;
 using Travelio.Domain;
+using Travelio.Application.Localization;
 
 namespace Travelio.UI.Services;
 
@@ -24,7 +25,7 @@ public sealed class TravelDataClient(HttpClient http, ILocalStore store, IDestin
         Fetch<ExchangeRate>($"rates/{Uri.EscapeDataString(currency)}?date={date:yyyy-MM-dd}", TimeSpan.FromHours(6));
     public async Task<Destination> GetCityAsync(string id)
     {
-        var saved = await store.GetAsync<Destination>("travelio.city." + id);
+        var saved = await SavedCityAsync(id);
         if (saved is not null) { catalog.Register(saved); return saved; }
         try { return catalog.Get(id); }
         catch (DomainException) { }
@@ -38,10 +39,12 @@ public sealed class TravelDataClient(HttpClient http, ILocalStore store, IDestin
         await _cacheGate.WaitAsync();
         try
         {
-            await store.SetAsync("travelio.city." + destination.Id, destination);
+            await store.SetAsync($"travelio.city.{L.Language}." + destination.Id, destination);
             var ids = await store.GetAsync<List<string>>("travelio.city.index") ?? [];
             ids.Remove(destination.Id); ids.Insert(0, destination.Id);
-            foreach (var oldId in ids.Skip(40)) await store.RemoveAsync("travelio.city." + oldId);
+            foreach (var oldId in ids.Skip(40))
+                foreach (var prefix in new[] { "travelio.city.pl.", "travelio.city.en.", "travelio.city." })
+                    await store.RemoveAsync(prefix + oldId);
             await store.SetAsync("travelio.city.index", ids.Take(40).ToList());
             catalog.Register(destination);
         }
@@ -51,7 +54,7 @@ public sealed class TravelDataClient(HttpClient http, ILocalStore store, IDestin
     {
         var result = new List<Destination>();
         foreach (var id in await store.GetAsync<List<string>>("travelio.city.index") ?? [])
-            if (await store.GetAsync<Destination>("travelio.city." + id) is { } city) result.Add(city);
+            if (await SavedCityAsync(id) is { } city) result.Add(city);
         return result;
     }
     public async Task<Destination> EnrichAsync(Destination destination)
@@ -72,22 +75,31 @@ public sealed class TravelDataClient(HttpClient http, ILocalStore store, IDestin
                 {
                     var updated = destination with { Attractions = places.Value.Attractions, SourceUrl = places.SourceUrl, RetrievedAt = places.RetrievedAt };
                     await RememberAsync(updated);
-                    return (updated, places.IsStale ? "Plan ułożono z wcześniej pobranych miejsc. Sprawdź aktualne godziny otwarcia przed wyjazdem." : null);
+                    return (updated, places.IsStale ? L.T("Plan ułożono z wcześniej pobranych miejsc. Sprawdź aktualne godziny otwarcia przed wyjazdem.") : null);
                 }
             }
             catch (DomainException) { /* A provider outage must not prevent local planning. */ }
         }
-        var saved = await store.GetAsync<Destination>("travelio.city." + destination.Id) ?? destination;
+        var saved = await SavedCityAsync(destination.Id) ?? destination;
         catalog.Register(saved);
         return (saved, saved.Attractions.Length > 0
-            ? "Plan ułożono z miejsc zapisanych na urządzeniu. Aktualizacja katalogu jest teraz niedostępna."
-            : "Podróż zapisana lokalnie z pustym planem. Pobierz miejsca po odzyskaniu połączenia z serwerem lub dodaj zapisane punkty.");
+            ? L.T("Plan ułożono z miejsc zapisanych na urządzeniu. Aktualizacja katalogu jest teraz niedostępna.")
+            : L.T("Podróż zapisana lokalnie z pustym planem. Pobierz miejsca po odzyskaniu połączenia z serwerem lub dodaj zapisane punkty."));
     }
+    private async Task<Destination?> SavedCityAsync(string id) =>
+        await store.GetAsync<Destination>($"travelio.city.{L.Language}." + id) ??
+        await store.GetAsync<Destination>($"travelio.city.{(L.Language == "en" ? "pl" : "en")}." + id) ??
+        await store.GetAsync<Destination>("travelio.city." + id);
+
     private async Task<SourcedData<T>> Fetch<T>(string path, TimeSpan ttl)
     {
-        var key = "travelio.data." + path;
+        var key = $"travelio.data.v2.{L.Language}." + path;
         var saved = await store.GetAsync<SourcedData<T>>(key);
         if (saved is not null && DateTimeOffset.UtcNow - saved.RetrievedAt < ttl) return saved;
+        // A language change must not discard offline data. Prefer fetching this language,
+        // but retain the previous language and pre-localization cache during an outage.
+        saved ??= await store.GetAsync<SourcedData<T>>($"travelio.data.v2.{(L.Language == "en" ? "pl" : "en")}." + path)
+            ?? await store.GetAsync<SourcedData<T>>("travelio.data." + path);
         try
         {
             using var response = await http.GetAsync("api/data/" + path);
@@ -95,7 +107,7 @@ public sealed class TravelDataClient(HttpClient http, ILocalStore store, IDestin
             {
                 if (saved is not null) return saved with { IsStale = true };
                 var error = await response.Content.ReadFromJsonAsync<ApiError>();
-                throw new DomainException(error?.Message ?? "Nie udało się pobrać danych. Spróbuj ponownie.");
+                throw new DomainException(error?.Message ?? L.T("Nie udało się pobrać danych. Spróbuj ponownie."));
             }
             var result = await response.Content.ReadFromJsonAsync<SourcedData<T>>() ?? throw new JsonException();
             await _cacheGate.WaitAsync();
@@ -113,7 +125,7 @@ public sealed class TravelDataClient(HttpClient http, ILocalStore store, IDestin
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             if (saved is not null) return saved with { IsStale = true };
-            throw new DomainException("Serwer lub dostawca danych nie odpowiada. Zapisane plany są nadal dostępne. Spróbuj ponownie za chwilę.");
+            throw new DomainException(L.T("Serwer lub dostawca danych nie odpowiada. Zapisane plany są nadal dostępne. Spróbuj ponownie za chwilę."));
         }
     }
 }

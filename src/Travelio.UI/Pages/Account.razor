@@ -2,39 +2,39 @@
 @inject WorkspaceService Workspace
 @inject ReminderCoordinator Reminders
 @inject IJSRuntime JS
-<PageTitle>Moje konto · Travelio</PageTitle>
-<PageHeader Eyebrow="TWOJA PRYWATNA PRZESTRZEŃ" Title="Podróże razem z Tobą." Subtitle="Zapisuj lokalnie, łącz urządzenia i planuj z bliskimi." />
+<PageTitle>@L.T("Moje konto · Travelio")</PageTitle>
+<PageHeader Eyebrow="@L.T("TWOJA PRYWATNA PRZESTRZEŃ")" Title="@L.T("Podróże razem z Tobą.")" Subtitle="@L.T("Zapisuj lokalnie, łącz urządzenia i planuj z bliskimi.")" />
 @if (_error is not null) { <div class="notice error" role="alert">@_error</div> }
 @if (_message is not null) { <div class="notice success" role="status">@_message</div> }
 <div class="account-grid">
     <section class="panel account-panel">
         @if (Workspace.User is null || !Workspace.SessionValid)
         {
-            <span class="stat-icon mint"><Icon Name="people" Size="28" /></span><h2>@(_register ? "Zacznij własną historię" : "Witaj z powrotem")</h2><p class="muted">@(_register ? "Załóż konto i zabierz swoje plany na inne urządzenia." : "Zaloguj się, aby synchronizować plany i współdzielić podróże.")</p>
-            <form @onsubmit="Login" @onsubmit:preventDefault><label>Adres e-mail<input type="email" required @bind="_email" autocomplete="username" placeholder="ty@example.com" /></label><label>Hasło<input type="password" required minlength="10" maxlength="128" @bind="_password" autocomplete="@(_register ? "new-password" : "current-password")" placeholder="Minimum 10 znaków" /></label>@if (_register) { <small class="muted">Co najmniej 10 znaków, duża i mała litera oraz cyfra.</small> }<button class="button primary full-width" type="submit" disabled="@_busy">@(_busy ? "Chwila…" : _register ? "Utwórz konto" : "Zaloguj się")<Icon Name="arrow" Size="18" /></button></form>
-            <button class="text-link account-switch" @onclick="() => _register = !_register">@(_register ? "Masz już konto? Zaloguj się" : "Pierwsza wizyta? Utwórz konto")</button>
-            <label class="checkbox-label"><input type="checkbox" @bind="_includeGuest" /> Skopiuj moje lokalne plany gościa i odwiedzone kraje na to konto po zalogowaniu.</label>
-            <p class="footnote">Konto ma osobną przestrzeń. Możesz przenieść do niej plany gościa teraz lub później. Ich oryginały pozostaną na urządzeniu.</p>
+            <span class="stat-icon mint"><Icon Name="people" Size="28" /></span><h2>@(_register ? L.T("Zacznij własną historię") : L.T("Witaj z powrotem"))</h2><p class="muted">@(_register ? L.T("Załóż konto i zabierz swoje plany na inne urządzenia.") : L.T("Zaloguj się, aby synchronizować plany i współdzielić podróże."))</p>
+            <form @onsubmit="Login" @onsubmit:preventDefault><label>@L.T("Adres e-mail")<input type="email" required @bind="_email" autocomplete="username" placeholder="ty@example.com" /></label><label>@L.T("Hasło")<input type="password" required minlength="10" maxlength="128" @bind="_password" autocomplete="@(_register ? "new-password" : "current-password")" placeholder="@L.T("Minimum 10 znaków")" /></label>@if (_register) { <small class="muted">@L.T("Co najmniej 10 znaków, duża i mała litera oraz cyfra.")</small> }<button class="button primary full-width" type="submit" disabled="@_busy">@(_busy ? L.T("Chwila…") : _register ? L.T("Utwórz konto") : L.T("Zaloguj się"))<Icon Name="arrow" Size="18" /></button></form>
+            <button class="text-link account-switch" @onclick="() => _register = !_register">@(_register ? L.T("Masz już konto? Zaloguj się") : L.T("Pierwsza wizyta? Utwórz konto"))</button>
+            <label class="checkbox-label"><input type="checkbox" @bind="_includeGuest" /> @L.T("Skopiuj moje lokalne plany gościa i odwiedzone kraje na to konto po zalogowaniu.")</label>
+            <p class="footnote">@L.T("Konto ma osobną przestrzeń. Możesz przenieść do niej plany gościa teraz lub później. Ich oryginały pozostaną na urządzeniu.")</p>
         }
         else
         {
-            <span class="avatar account-avatar">@Workspace.User.Email[..1].ToUpperInvariant()</span><h2>@Workspace.User.Email</h2><p class="muted">Twoje plany mają tu swoje miejsce.</p><div class="sync-summary"><span class="status-dot @(Workspace.IsOnline ? "" : "offline")"></span>@Workspace.Status</div><p>@Workspace.PendingCount zmian oczekuje na synchronizację.</p><div class="button-row"><button class="button primary" @onclick="Sync" disabled="@Workspace.IsSyncing"><Icon Name="cloud" Size="18" />Synchronizuj teraz</button><button class="button secondary" @onclick="Logout" disabled="@_busy">Wyloguj się</button></div><p class="footnote">Wylogowanie usuwa lokalną kopię danych tego konta. Najpierw zsynchronizuj wszystkie zmiany.</p>
+            <span class="avatar account-avatar">@Workspace.User.Email[..1].ToUpperInvariant()</span><h2>@Workspace.User.Email</h2><p class="muted">@L.T("Twoje plany mają tu swoje miejsce.")</p><div class="sync-summary"><span class="status-dot @(Workspace.IsOnline ? "" : "offline")"></span>@Workspace.Status</div><p>@L.F($"Zmiany oczekujące na synchronizację: {Workspace.PendingCount}.")</p><div class="button-row"><button class="button primary" @onclick="Sync" disabled="@Workspace.IsSyncing"><Icon Name="cloud" Size="18" />@L.T("Synchronizuj teraz")</button><button class="button secondary" @onclick="Logout" disabled="@_busy">@L.T("Wyloguj się")</button></div><p class="footnote">@L.T("Wylogowanie usuwa lokalną kopię danych tego konta. Najpierw zsynchronizuj wszystkie zmiany.")</p>
         }
     </section>
-    <div class="account-side"><section class="panel"><span class="stat-icon lavender"><Icon Name="download" /></span><h3>Twoje dane, zawsze przy Tobie</h3><p>Eksportuj wszystkie plany, wydatki i odwiedzone kraje do pliku JSON. To również kopia zapasowa przed zmianą urządzenia.</p><button class="button secondary" @onclick="Export">Pobierz kopię danych</button></section><section class="panel"><span class="stat-icon peach"><Icon Name="shield" /></span><h3>Offline znaczy niezależnie</h3><p>Plany i wydatki zapisujemy na tym urządzeniu. Konto dodaje synchronizację. Dane lokalne są dostępne każdemu, kto ma dostęp do tego profilu urządzenia.</p><p class="footnote">PWA działa offline po pierwszym pełnym pobraniu wersji opublikowanej. Aktualne loty, noclegi i alerty wymagają integracji z dostawcami.</p></section></div>
+    <div class="account-side"><section class="panel"><span class="stat-icon lavender"><Icon Name="download" /></span><h3>@L.T("Twoje dane, zawsze przy Tobie")</h3><p>@L.T("Eksportuj wszystkie plany, wydatki i odwiedzone kraje do pliku JSON. To również kopia zapasowa przed zmianą urządzenia.")</p><button class="button secondary" @onclick="Export">@L.T("Pobierz kopię danych")</button></section><section class="panel"><span class="stat-icon peach"><Icon Name="shield" /></span><h3>@L.T("Offline znaczy niezależnie")</h3><p>@L.T("Plany i wydatki zapisujemy na tym urządzeniu. Konto dodaje synchronizację. Dane lokalne są dostępne każdemu, kto ma dostęp do tego profilu urządzenia.")</p><p class="footnote">@L.T("PWA działa offline po pierwszym pełnym pobraniu wersji opublikowanej. Aktualne loty, noclegi i alerty wymagają integracji z dostawcami.")</p></section></div>
 </div>
 <section class="panel backup-panel">
-    <h2>Przywróć swoje podróże</h2>
-    <p>Wybierz kopię Travelio lub plik pojedynczego planu (JSON, maks. 5 MB). Dodamy brakujące podróże jako prywatne kopie oraz odwiedzone kraje. Obecne dane pozostaną bez zmian.</p>
-    <label>Plik kopii danych<InputFile OnChange="Import" accept=".json,application/json" disabled="@_busy" /></label>
+    <h2>@L.T("Przywróć swoje podróże")</h2>
+    <p>@L.T("Wybierz kopię Travelio lub plik pojedynczego planu (JSON, maks. 5 MB). Dodamy brakujące podróże jako prywatne kopie oraz odwiedzone kraje. Obecne dane pozostaną bez zmian.")</p>
+    <label>@L.T("Plik kopii danych")<InputFile OnChange="Import" accept=".json,application/json" disabled="@_busy" /></label>
     @if (Workspace.User is not null)
     {
-        <button class="button secondary" disabled="@_busy" @onclick="ImportGuest">Skopiuj plany gościa i odwiedzone kraje na konto</button>
+        <button class="button secondary" disabled="@_busy" @onclick="ImportGuest">@L.T("Skopiuj plany gościa i odwiedzone kraje na konto")</button>
     }
 </section>
 @if (Workspace.HasConflicts)
 {
-    <section class="panel conflicts"><h2>Dwie wersje, żadnych straconych pomysłów</h2><p>Podróż zmieniła się na dwóch urządzeniach. Możesz zachować swoje zmiany jako osobną podróż albo przyjąć wersję z chmury.</p>@foreach (var item in Workspace.Conflicts) { <div class="conflict-row"><h3>@item.Trip.Name</h3><div class="button-row"><button class="button primary" @onclick="() => Resolve(item.Trip.Id, true)">Zachowaj moją kopię</button><button class="button secondary" @onclick="() => Resolve(item.Trip.Id, false)">Przyjmij wersję z chmury</button></div></div> }</section>
+    <section class="panel conflicts"><h2>@L.T("Dwie wersje, żadnych straconych pomysłów")</h2><p>@L.T("Podróż zmieniła się na dwóch urządzeniach. Możesz zachować swoje zmiany jako osobną podróż albo przyjąć wersję z chmury.")</p>@foreach (var item in Workspace.Conflicts) { <div class="conflict-row"><h3>@item.Trip.Name</h3><div class="button-row"><button class="button primary" @onclick="() => Resolve(item.Trip.Id, true)">@L.T("Zachowaj moją kopię")</button><button class="button secondary" @onclick="() => Resolve(item.Trip.Id, false)">@L.T("Przyjmij wersję z chmury")</button></div></div> }</section>
 }
 @code {
     private bool _register, _busy, _includeGuest;
@@ -48,8 +48,8 @@
         { _error = ex switch
             {
                 ApiException or DomainException => ex.Message,
-                HttpRequestException or TaskCanceledException => "Serwer kont Travelio nie odpowiada. Spróbuj ponownie za chwilę. Planowanie i zapis lokalny nadal działają; utworzenie konta wymaga działającego serwera.",
-                _ => "Nie udało się zapisać danych na urządzeniu. Sprawdź wolne miejsce i zezwolenie na przechowywanie danych witryny."
+                HttpRequestException or TaskCanceledException => L.T("Serwer kont Travelio nie odpowiada. Spróbuj ponownie za chwilę. Planowanie i zapis lokalny nadal działają; utworzenie konta wymaga działającego serwera."),
+                _ => L.T("Nie udało się zapisać danych na urządzeniu. Sprawdź wolne miejsce i zezwolenie na przechowywanie danych witryny.")
             };
         }
         finally { _busy = false; }
@@ -61,22 +61,22 @@
         var imported = _includeGuest ? await Workspace.ImportGuestAsync() : 0;
         if (_includeGuest) await Workspace.SyncAsync();
         await Reminders.RefreshAsync();
-        _message = $"Konto połączone. {(_includeGuest ? $"Dodano podróży z przestrzeni gościa: {imported}. " : "")}Możesz kontynuować planowanie.";
+        _message = L.T("Konto połączone. Możesz kontynuować planowanie.") + (_includeGuest ? " " + L.F($"Dodano podróży z przestrzeni gościa: {imported}.") : "");
     });
     private Task ImportGuest() => Run(async () =>
     {
         var count = await Workspace.ImportGuestAsync();
         await Workspace.SyncAsync(); await Reminders.RefreshAsync();
-        _message = $"Skopiowano {count} nowych podróży i połączono odwiedzone kraje. Oryginały gościa pozostały na urządzeniu.";
+        _message = L.F($"Skopiowano {count} nowych podróży i połączono odwiedzone kraje. Oryginały gościa pozostały na urządzeniu.");
     });
     private Task Import(InputFileChangeEventArgs args) => Run(async () =>
     {
-        if (args.File.Size > 5 * 1024 * 1024) throw new DomainException("Wybierz kopię o wielkości do 5 MB.");
+        if (args.File.Size > 5 * 1024 * 1024) throw new DomainException(L.T("Wybierz kopię o wielkości do 5 MB."));
         await using var stream = args.File.OpenReadStream(5 * 1024 * 1024);
         using var reader = new StreamReader(stream);
         var count = await Workspace.ImportJsonAsync(await reader.ReadToEndAsync());
         await Reminders.RefreshAsync();
-        _message = $"Przywrócono {count} nowych podróży i połączono odwiedzone kraje. Dane zapisano lokalnie.";
+        _message = L.F($"Przywrócono {count} nowych podróży i połączono odwiedzone kraje. Dane zapisano lokalnie.");
     });
     private Task Logout() => Run(async () => { await Workspace.LogoutAsync(); await Reminders.DisableAsync(); });
     private Task Sync() => Run(Workspace.SyncAsync);

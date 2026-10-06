@@ -1,16 +1,16 @@
 @inject TravelDataClient Data
 <div class="city-search">
-    <label>Wyszukaj miasto na świecie<input aria-label="Nazwa miasta" @bind="_query" @bind:event="oninput" placeholder="np. Kraków, Paryż, Nowy Jork" maxlength="120" @onkeydown="KeyDown" /></label>
-    <button type="button" class="button secondary" disabled="@_busy" @onclick="Search"><Icon Name="search" Size="17" />@(_busy ? "Szukam…" : "Szukaj miasta")</button>
+    <label>@L.T("Wyszukaj miasto na świecie")<input aria-label="@L.T("Nazwa miasta")" @bind="_query" @bind:event="oninput" placeholder="@L.T("np. Kraków, Paryż, Nowy Jork")" maxlength="120" @onkeydown="KeyDown" /></label>
+    <button type="button" class="button secondary" disabled="@_busy" @onclick="Search"><Icon Name="search" Size="17" />@(_busy ? L.T("Szukam…") : L.T("Szukaj miasta"))</button>
     @if (_error is not null) { <p class="notice error" role="alert">@_error</p> }
     @if (_result is not null)
     {
         <div class="place-results" aria-live="polite">
         @foreach (var city in _result.Value)
-        { <button type="button" class="place-result" @onclick="() => Pick(city)"><Icon Name="pin" /><span><strong>@city.Name</strong><small>@city.Description</small></span><Icon Name="arrow" Size="18" /></button> }
-        @if (_result.Value.Length == 0) { <p>Nie znaleziono miasta. Spróbuj jego lokalnej nazwy.</p> }
+        { <button type="button" class="place-result" @onclick="() => Pick(city)"><Icon Name="pin" /><span><strong>@L.T(city.Name)</strong><small>@L.T(city.Description)</small></span><Icon Name="arrow" Size="18" /></button> }
+        @if (_result.Value.Length == 0) { <p>@L.T("Nie znaleziono miasta. Spróbuj jego lokalnej nazwy.")</p> }
         </div>
-        <p class="footnote">@_result.Source · @(_result.IsStale ? "kopia offline" : "pobrano") @_result.RetrievedAt.ToLocalTime().ToString("g", Display.Polish)</p>
+        <p class="footnote">@_result.Source · @(_result.IsStale ? L.T("kopia offline") : L.T("pobrano")) @_result.RetrievedAt.ToLocalTime().ToString("g", Display.Polish)</p>
     }
 </div>
 @code {
@@ -24,7 +24,7 @@
         if (_busy) return;
         _busy = true; _error = null;
         try { if (_query.Trim().Length < 2) throw new DomainException("Wpisz co najmniej 2 znaki."); _result = await Data.SearchCitiesAsync(_query); }
-        catch (Exception ex) when (ex is DomainException or JSException) { _error = ex.Message; }
+        catch (Exception ex) when (ex is DomainException or JSException) { _error = L.T(ex.Message); }
         finally { _busy = false; }
     }
     private async Task Pick(Destination city) { await Data.RememberAsync(city); await Selected.InvokeAsync(city); _result = null; }

@@ -3,6 +3,7 @@ using Foundation;
 using UserNotifications;
 using Travelio.Application;
 using Travelio.Domain;
+using Travelio.Application.Localization;
 namespace Travelio.Maui.Services;
 
 public sealed class AppleNotificationService : INotificationService
@@ -22,7 +23,7 @@ public sealed class AppleNotificationService : INotificationService
             var date = reminder.DueAt.UtcDateTime;
             var content = new UNMutableNotificationContent
             {
-                Title = "Twój plan Travelio", Body = reminder.Title + ". Oznacz punkt jako odwiedzony, gdy będzie już za Tobą.",
+                Title = L.T("Twój plan Travelio"), Body = reminder.Title + L.T(". Oznacz punkt jako odwiedzony, gdy będzie już za Tobą."),
                 Sound = UNNotificationSound.Default
             };
             var components = new NSDateComponents

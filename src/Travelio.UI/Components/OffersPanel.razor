@@ -1,22 +1,22 @@
 @inject TravelDataClient Data
 @inject IDestinationCatalog Catalog
 @{ var destination = Catalog.Resolve(Trip); }
-<div class="section-heading"><div><h2>Nocleg w dobrym miejscu</h2><p class="muted">Rzeczywiste obiekty w okolicy @destination.Name. Ceny, dostępność i opinie sprawdzisz na Booking.</p></div><a class="button primary" target="_blank" rel="noopener noreferrer" href="@TravelLinks.Booking(destination, Trip)">Szukaj na Booking ↗</a></div>
-<p class="footnote">Rezerwacja: @Display.Date(Trip.StartDate) – @Display.Date(Trip.Days > 1 ? Trip.EndDate : Trip.StartDate.AddDays(1)) · @Trip.Travelers os. · @(Math.Max(1, Trip.Days - 1)) nocy. Dla jednodniowego wyjazdu wyszukujemy jedną noc; daty i pokoje możesz zmienić na Booking.</p>
-@if (_busy) { <p class="notice" role="status">Pobieram noclegi z OpenStreetMap…</p> }
-@if (_error is not null) { <p class="notice error">@_error <button class="text-link" @onclick="Load">Spróbuj ponownie</button></p> }
+<div class="section-heading"><div><h2>@L.T("Nocleg w dobrym miejscu")</h2><p class="muted">@L.F($"Noclegi w okolicy: {L.T(destination.Name)}. Ceny, dostępność i opinie sprawdzisz na Booking.")</p></div><a class="button primary" target="_blank" rel="noopener noreferrer" href="@TravelLinks.Booking(destination, Trip)">@L.T("Szukaj na Booking ↗")</a></div>
+<p class="footnote">@L.T("Rezerwacja:") @Display.Date(Trip.StartDate) – @Display.Date(Trip.Days > 1 ? Trip.EndDate : Trip.StartDate.AddDays(1)) · @Trip.Travelers @L.T("os.") · @(Math.Max(1, Trip.Days - 1)) nocy. @L.T("Dla jednodniowego wyjazdu wyszukujemy jedną noc; daty i pokoje możesz zmienić na Booking.")</p>
+@if (_busy) { <p class="notice" role="status">@L.T("Pobieram noclegi z OpenStreetMap…")</p> }
+@if (_error is not null) { <p class="notice error">@_error <button class="text-link" @onclick="Load">@L.T("Spróbuj ponownie")</button></p> }
 @if (_places is not null)
 {
-    <p class="footnote">@_places.Source · @(_places.IsStale ? "kopia offline z" : "pobrano") @_places.RetrievedAt.ToLocalTime().ToString("g", Display.Polish). Lista nie potwierdza dostępności na wybrane daty.</p>
+    <p class="footnote">@_places.Source · @(_places.IsStale ? L.T("kopia offline z") : L.T("pobrano")) @_places.RetrievedAt.ToLocalTime().ToString("g", Display.Polish). @L.T("Lista nie potwierdza dostępności na wybrane daty.")</p>
     <div class="offers-grid">@foreach (var hotel in _places.Value.Accommodations.Take(_shown))
-    { <section class="panel offer-card"><span class="stat-icon mint"><Icon Name="home" /></span><h3>@hotel.Name</h3><p>@(hotel.Address.Length == 0 ? destination.Name : hotel.Address)</p><div class="button-row"><a class="button primary small" target="_blank" rel="noopener noreferrer" href="@TravelLinks.Booking(destination, Trip, hotel.Name)">Sprawdź na Booking ↗</a><a class="text-link" target="_blank" rel="noopener noreferrer" href="@TravelLinks.GoogleMaps(hotel.Name, hotel.Location)">Mapa i opinie ↗</a></div></section> }</div>
-    @if (_places.Value.Accommodations.Length > _shown) { <button class="button secondary" @onclick="() => _shown += 12">Pokaż więcej noclegów</button> }
-    @if (_places.Value.Accommodations.Length == 0) { <p class="notice">Brak obiektów w bazie mapy dla tej okolicy. Wyszukiwarka Booking obejmuje również inne obiekty.</p> }
+    { <section class="panel offer-card"><span class="stat-icon mint"><Icon Name="home" /></span><h3>@hotel.Name</h3><p>@(hotel.Address.Length == 0 ? destination.Name : hotel.Address)</p><div class="button-row"><a class="button primary small" target="_blank" rel="noopener noreferrer" href="@TravelLinks.Booking(destination, Trip, hotel.Name)">@L.T("Sprawdź na Booking ↗")</a><a class="text-link" target="_blank" rel="noopener noreferrer" href="@TravelLinks.GoogleMaps(hotel.Name, hotel.Location)">@L.T("Mapa i opinie ↗")</a></div></section> }</div>
+    @if (_places.Value.Accommodations.Length > _shown) { <button class="button secondary" @onclick="() => _shown += 12">@L.T("Pokaż więcej noclegów")</button> }
+    @if (_places.Value.Accommodations.Length == 0) { <p class="notice">@L.T("Brak obiektów w bazie mapy dla tej okolicy. Wyszukiwarka Booking obejmuje również inne obiekty.")</p> }
 }
-<div class="section-heading"><div><h2>Loty u przewoźnika</h2><p class="muted">Sprawdź połączenia i kup bilet na oficjalnej stronie linii.</p></div></div>
-<div class="notice subtle"><Icon Name="plane" /><p>@destination.Name · @Trip.StartDate.ToString("dd.MM.yyyy") – @Trip.EndDate.ToString("dd.MM.yyyy") · @Trip.Travelers podróżników. Poniżej znajdziesz wyszukiwarki linii; przewoźnicy nie są potwierdzeni dla Twojej trasy. Cena i rozkład pojawią się po wyszukaniu u przewoźnika.</p></div>
+<div class="section-heading"><div><h2>@L.T("Loty u przewoźnika")</h2><p class="muted">@L.T("Sprawdź połączenia i kup bilet na oficjalnej stronie linii.")</p></div></div>
+<div class="notice subtle"><Icon Name="plane" /><p>@L.T(destination.Name) · @Trip.StartDate.ToString("dd.MM.yyyy") – @Trip.EndDate.ToString("dd.MM.yyyy") · @Trip.Travelers @L.T("os."). @L.T("Poniżej znajdziesz wyszukiwarki linii; przewoźnicy nie są potwierdzeni dla Twojej trasy. Cena i rozkład pojawią się po wyszukaniu u przewoźnika.")</p></div>
 <div class="airline-links">
-@foreach (var airline in Airlines) { <a class="panel airline-link" href="@airline.Url" target="_blank" rel="noopener noreferrer"><Icon Name="plane" /><strong>@airline.Name</strong><span>Wyszukaj lot ↗</span></a> }
+@foreach (var airline in Airlines) { <a class="panel airline-link" href="@airline.Url" target="_blank" rel="noopener noreferrer"><Icon Name="plane" /><strong>@airline.Name</strong><span>@L.T("Wyszukaj lot ↗")</span></a> }
 </div>
 @code {
     [Parameter, EditorRequired] public Trip Trip { get; set; } = default!;
@@ -30,7 +30,7 @@
     {
         _busy = true; _error = null;
         try { _places = await Data.PlacesAsync(Catalog.Resolve(Trip)); }
-        catch (Exception ex) when (ex is DomainException or JSException) { _error = ex.Message; }
+        catch (Exception ex) when (ex is DomainException or JSException) { _error = L.T(ex.Message); }
         finally { _busy = false; }
     }
 }

@@ -2,14 +2,14 @@
 @implements IAsyncDisposable
 @inject WorkspaceService Workspace
 @inject IJSRuntime JS
-<PageTitle>Mój świat · Travelio</PageTitle>
-<PageHeader Eyebrow="KAŻDE MIEJSCE TO NOWA HISTORIA" Title="Twój ślad na mapie świata." Subtitle="Zaznacz miejsca, które już znasz. Zostaw przestrzeń na te, które dopiero poznasz." />
+<PageTitle>@L.T("Mój świat · Travelio")</PageTitle>
+<PageHeader Eyebrow="@L.T("KAŻDE MIEJSCE TO NOWA HISTORIA")" Title="@L.T("Twój ślad na mapie świata.")" Subtitle="@L.T("Zaznacz miejsca, które już znasz. Zostaw przestrzeń na te, które dopiero poznasz.")" />
 <div class="passport-layout">
-    <section class="globe-panel panel"><div class="globe-heading"><span class="pill mint"><Icon Name="globe" Size="15" />Twój podróżniczy paszport</span><span class="eyebrow">ODKRYWAJ DALEJ</span></div><canvas id="travelio-globe" aria-label="Interaktywny globus. Obróć przeciągając. Kraje można także zaznaczać na liście obok." role="img"></canvas><div class="globe-controls"><button class="button secondary small" aria-label="Oddal globus" @onclick="() => Zoom(1 / 1.5)">−</button><button class="button secondary small" aria-label="Przybliż globus" @onclick="() => Zoom(1.5)">+</button><button class="button secondary small" @onclick="ResetView">Cały świat</button></div><div class="globe-hint"><Icon Name="compass" Size="17" />Obracaj przeciągając · przybliż kółkiem lub dwoma palcami</div><div class="globe-legend"><span><i class="visited"></i>Twoje wspomnienia</span><span><i></i>Jeszcze do odkrycia</span></div><div class="passport-stats"><div><strong>@Workspace.Countries.Count</strong><span>odwiedzonych krajów i terytoriów</span></div><div><strong>@Math.Max(0, _countries.Count - Workspace.Countries.Count)</strong><span>możliwych nowych historii</span></div><Icon Name="plane" Size="36" /></div></section>
-    <section class="panel country-panel"><h2>Gdzie już Cię poniosło?</h2><p class="muted">Twoja kolekcja dobrych wspomnień.</p><label class="search-input"><Icon Name="search" Size="18" /><input aria-label="Szukaj kraju" placeholder="Znajdź kraj…" @bind="_search" @bind:event="oninput" /></label><div class="filter-chips country-filters"><button class="@(!_visitedOnly ? "active" : "")" @onclick="() => _visitedOnly = false">Wszystkie</button><button class="@(_visitedOnly ? "active" : "")" @onclick="() => _visitedOnly = true">Odwiedzone (@Workspace.Countries.Count)</button></div><div class="country-list">@foreach (var country in Filtered) { var visited = Workspace.Countries.Contains(country.Code); <div class="country-row"><button class="country-item @(visited ? "visited" : "")" @onclick="() => Toggle(country.Code)"><span class="country-code">@country.Code</span><span>@country.Name</span><span class="country-check">@if (visited) { <Icon Name="check" Size="15" /> }</span></button><button class="icon-button" aria-label="@($"Pokaż {country.Name} na globusie")" @onclick="() => Focus(country.Code)"><Icon Name="search" Size="17" /></button></div> }@if (!Filtered.Any()) { <p class="muted">Nie znaleziono pasującego kraju.</p> }</div></section>
+    <section class="globe-panel panel"><div class="globe-heading"><span class="pill mint"><Icon Name="globe" Size="15" />@L.T("Twój podróżniczy paszport")</span><span class="eyebrow">@L.T("ODKRYWAJ DALEJ")</span></div><canvas id="travelio-globe" aria-label="@L.T("Interaktywny globus. Obróć przeciągając. Kraje można także zaznaczać na liście obok.")" role="img"></canvas><div class="globe-controls"><button class="button secondary small" aria-label="@L.T("Oddal globus")" @onclick="() => Zoom(1 / 1.5)">−</button><button class="button secondary small" aria-label="@L.T("Przybliż globus")" @onclick="() => Zoom(1.5)">+</button><button class="button secondary small" @onclick="ResetView">@L.T("Cały świat")</button></div><div class="globe-hint"><Icon Name="compass" Size="17" />@L.T("Obracaj przeciągając · przybliż kółkiem lub dwoma palcami")</div><div class="globe-legend"><span><i class="visited"></i>@L.T("Twoje wspomnienia")</span><span><i></i>@L.T("Jeszcze do odkrycia")</span></div><div class="passport-stats"><div><strong>@Workspace.Countries.Count</strong><span>@L.T("odwiedzonych krajów i terytoriów")</span></div><div><strong>@Math.Max(0, _countries.Count - Workspace.Countries.Count)</strong><span>@L.T("możliwych nowych historii")</span></div><Icon Name="plane" Size="36" /></div></section>
+    <section class="panel country-panel"><h2>@L.T("Gdzie już Cię poniosło?")</h2><p class="muted">@L.T("Twoja kolekcja dobrych wspomnień.")</p><label class="search-input"><Icon Name="search" Size="18" /><input aria-label="@L.T("Szukaj kraju")" placeholder="@L.T("Znajdź kraj…")" @bind="_search" @bind:event="oninput" /></label><div class="filter-chips country-filters"><button class="@(!_visitedOnly ? "active" : "")" @onclick="() => _visitedOnly = false">@L.T("Wszystkie")</button><button class="@(_visitedOnly ? "active" : "")" @onclick="() => _visitedOnly = true">@L.T("Odwiedzone") (@Workspace.Countries.Count)</button></div><div class="country-list">@foreach (var country in Filtered) { var visited = Workspace.Countries.Contains(country.Code); <div class="country-row"><button class="country-item @(visited ? "visited" : "")" @onclick="() => Toggle(country.Code)"><span class="country-code">@country.Code</span><span>@country.Name</span><span class="country-check">@if (visited) { <Icon Name="check" Size="15" /> }</span></button><button class="icon-button" aria-label="@L.F($"Pokaż {country.Name} na globusie")" @onclick="() => Focus(country.Code)"><Icon Name="search" Size="17" /></button></div> }@if (!Filtered.Any()) { <p class="muted">@L.T("Nie znaleziono pasującego kraju.")</p> }</div></section>
 </div>
 @if (_error is not null) { <div class="notice error" role="alert">@_error</div> }
-<p class="footnote">Granice: Natural Earth 1:50 mln. Przybliż do 12×. Małe państwa mają dodatkowe znaczniki ułatwiające zaznaczenie. Lupka przy kraju centruje globus. Granice mają charakter poglądowy.</p>
+<p class="footnote">@L.T("Granice: Natural Earth 1:50 mln. Przybliż do 12×. Małe państwa mają dodatkowe znaczniki ułatwiające zaznaczenie. Lupka przy kraju centruje globus. Granice mają charakter poglądowy.")</p>
 @code {
     private string _search = "";
     private bool _visitedOnly, _mounted;
@@ -28,7 +28,7 @@
             _mounted = true;
             StateHasChanged();
         }
-        catch (JSException) { _error = "Nie udało się wczytać globusa. Lista krajów nadal pozwala zapisać odwiedziny."; }
+        catch (JSException) { _error = L.T("Nie udało się wczytać globusa. Lista krajów nadal pozwala zapisać odwiedziny."); }
     }
     private Task Zoom(double factor) => JS.InvokeVoidAsync("travelio.globe.zoom", factor).AsTask();
     private Task ResetView() => JS.InvokeVoidAsync("travelio.globe.reset").AsTask();
@@ -41,7 +41,7 @@
             if (_mounted) await JS.InvokeVoidAsync("travelio.globe.update", Workspace.Countries);
             StateHasChanged();
         }
-        catch (JSException) { _error = "Nie udało się zapisać zmiany w pamięci urządzenia."; }
+        catch (JSException) { _error = L.T("Nie udało się zapisać zmiany w pamięci urządzenia."); }
     }
     public async ValueTask DisposeAsync()
     {

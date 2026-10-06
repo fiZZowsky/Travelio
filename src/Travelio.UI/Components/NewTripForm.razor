@@ -3,19 +3,19 @@
 @inject WorkspaceService Workspace
 @inject NavigationManager Navigation
 
-<Modal Title="Twoja następna przygoda" Close="Close">
-    <p class="muted">Wybierz miasto. Pobierzemy miejsca do zwiedzania i ułożymy je w dni podróży.</p>
+<Modal Title="@L.T("Twoja następna przygoda")" Close="Close">
+    <p class="muted">@L.T("Wybierz miasto. Pobierzemy miejsca do zwiedzania i ułożymy je w dni podróży.")</p>
     <CitySearch Selected="SelectCity" />
     @if (_error is not null) { <div class="notice error" role="alert">@_error</div> }
     <form @onsubmit="Create" @onsubmit:preventDefault>
-        <label>Nazwa podróży<input @bind="_name" required maxlength="100" placeholder="np. Włoskie dolce vita" autofocus /></label>
-        <label>Kierunek<select value="@_destination" @onchange="ChangeDestination">@if (_selectedCity is not null && !_cities.Any(x => x.Id == _selectedCity.Id)) { <option value="@_selectedCity.Id">@_selectedCity.Name, @_selectedCity.Country</option> }@foreach (var d in _cities) { <option value="@d.Id">@d.Name, @d.Country</option> }</select><small>Zapisane kierunki są dostępne także bez serwera.</small></label>
-        <div class="form-grid"><label>Data wyjazdu<input type="date" @bind="_date" required /></label><label>Liczba dni<input type="number" min="1" max="30" @bind="_days" required /></label></div>
-        <div class="form-grid"><label>Podróżnicy<input type="number" min="1" max="20" @bind="_travelers" required /></label><label>Łączny budżet (PLN)<input type="number" min="0" max="100000000" step="0.01" @bind="_budget" required /></label></div>
-        <label>Tempo podróży<select @bind="_pace">@foreach (var pace in Enum.GetValues<TravelPace>()) { <option value="@pace">@Display.Pace(pace)</option> }</select></label>
-        <p class="footnote">Spokojnie: do 3 miejsc i dłuższe wizyty. W swoim rytmie: do 5. Intensywnie: do 7 i krótsze wizyty. Odległości i liczba dostępnych miejsc mogą ograniczyć plan.</p>
-        <label class="checkbox-label"><input type="checkbox" @bind="_emptyPlan" /> Zacznij od pustego planu</label>
-        <div class="form-actions"><button type="button" class="button secondary" @onclick="Close">Anuluj</button><button class="button primary" type="submit" disabled="@_busy"><Icon Name="sparkles" Size="18" />@(_busy ? "Pobieram miejsca i układam plan…" : "Stwórz podróż")</button></div>
+        <label>@L.T("Nazwa podróży")<input @bind="_name" required maxlength="100" placeholder="@L.T("np. Włoskie dolce vita")" autofocus /></label>
+        <label>@L.T("Kierunek")<select value="@_destination" @onchange="ChangeDestination">@if (_selectedCity is not null && !_cities.Any(x => x.Id == _selectedCity.Id)) { <option value="@_selectedCity.Id">@L.T(_selectedCity.Name), @L.T(_selectedCity.Country)</option> }@foreach (var d in _cities) { <option value="@d.Id">@L.T(d.Name), @L.T(d.Country)</option> }</select><small>@L.T("Zapisane kierunki są dostępne także bez serwera.")</small></label>
+        <div class="form-grid"><label>@L.T("Data wyjazdu")<input type="date" @bind="_date" required /></label><label>@L.T("Liczba dni")<input type="number" min="1" max="30" @bind="_days" required /></label></div>
+        <div class="form-grid"><label>@L.T("Podróżnicy")<input type="number" min="1" max="20" @bind="_travelers" required /></label><label>@L.T("Łączny budżet (PLN)")<input type="number" min="0" max="100000000" step="0.01" @bind="_budget" required /></label></div>
+        <label>@L.T("Tempo podróży")<select @bind="_pace">@foreach (var pace in Enum.GetValues<TravelPace>()) { <option value="@pace">@Display.Pace(pace)</option> }</select></label>
+        <p class="footnote">@L.T("Tempo określa czas aktywności, przejść i przerw: spokojnie do 4,5 h, w swoim rytmie do 6,5 h, intensywnie do 9 h dziennie. Liczba miejsc wynika z długości wizyt. Czas potrzebny na zwiedzanie nie jest skracany.")</p>
+        <label class="checkbox-label"><input type="checkbox" @bind="_emptyPlan" /> @L.T("Zacznij od pustego planu")</label>
+        <div class="form-actions"><button type="button" class="button secondary" @onclick="Close">@L.T("Anuluj")</button><button class="button primary" type="submit" disabled="@_busy"><Icon Name="sparkles" Size="18" />@(_busy ? L.T("Pobieram miejsca i układam plan…") : L.T("Stwórz podróż"))</button></div>
     </form>
 </Modal>
 @code {
@@ -40,9 +40,9 @@
         foreach (var city in _cities) Catalog.Register(city);
         if (InitialDailyBudget is { } daily) _budget = daily * _days * _travelers;
         try { SelectCity(await Data.GetCityAsync(DestinationId ?? "lisbon")); }
-        catch (Exception ex) when (ex is DomainException or HttpRequestException) { _error = ex.Message; }
+        catch (Exception ex) when (ex is DomainException or HttpRequestException) { _error = L.T(ex.Message); }
     }
-    private void SelectCity(Destination city) { _selectedCity = city; _destination = city.Id; _name = $"Podróż · {city.Name}"; _error = null; }
+    private void SelectCity(Destination city) { _selectedCity = city; _destination = city.Id; _name = L.F($"Podróż · {L.T(city.Name)}"); _error = null; }
     private async Task ChangeDestination(ChangeEventArgs e) => SelectCity(await Data.GetCityAsync(e.Value?.ToString() ?? "lisbon"));
     private async Task Create()
     {
@@ -60,7 +60,7 @@
             Navigation.NavigateTo($"/trips/{trip.Id}" + (notice is null ? "" : "?notice=" + Uri.EscapeDataString(notice)));
             await Close.InvokeAsync();
         }
-        catch (Exception ex) when (ex is DomainException or JSException or HttpRequestException or TaskCanceledException) { _error = ex is DomainException ? ex.Message : "Nie udało się zapisać podróży. Sprawdź połączenie i pamięć urządzenia."; }
+        catch (Exception ex) when (ex is DomainException or JSException or HttpRequestException or TaskCanceledException) { _error = ex is DomainException ? L.T(ex.Message) : L.T("Nie udało się zapisać podróży. Sprawdź połączenie i pamięć urządzenia."); }
         finally { _busy = false; }
     }
 }

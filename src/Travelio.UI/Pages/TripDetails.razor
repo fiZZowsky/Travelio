@@ -7,76 +7,77 @@
 @inject ReminderCoordinator Reminders
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
-<PageTitle>@(_trip?.Name ?? "Podróż") · Travelio</PageTitle>
+<PageTitle>@(_trip?.Name ?? L.T("Podróż")) · Travelio</PageTitle>
 @if (_trip is not null)
 {
     var destination = Catalog.Resolve(_trip);
     var metadata = Workspace.Metadata(Id)!;
     var canEdit = metadata.CanEdit;
-    <a class="text-link back-link" href="/trips"><Icon Name="back" Size="17" />Wszystkie podróże</a>
-    <div class="trip-detail-banner"><img src="@Display.Image(destination)" alt="@destination.Name" /><div class="hero-shade"></div><div><span class="pill">@destination.Country · @Display.Pace(_trip.Pace)</span><h1>@_trip.Name</h1><p><Icon Name="calendar" Size="17" />@Display.Date(_trip.StartDate) – @Display.Date(_trip.EndDate) <span>·</span><Icon Name="people" Size="17" />@_trip.Travelers os. <span>·</span> @Display.Money(_trip.Budget) budżetu</p></div><button class="button hero-button" @onclick="Export"><Icon Name="download" Size="17" />Zapisz plan</button></div>
-    <div class="trip-tabs" role="tablist" aria-label="Sekcje podróży">@foreach (var tab in Tabs) { <button role="tab" aria-selected="@(_tab == tab.Key)" class="@(_tab == tab.Key ? "active" : "")" @onclick="() => _tab = tab.Key"><Icon Name="@tab.Icon" Size="17" />@tab.Label</button> }</div>
+    <a class="text-link back-link" href="/trips"><Icon Name="back" Size="17" />@L.T("Wszystkie podróże")</a>
+    <div class="trip-detail-banner"><img src="@Display.Image(destination)" alt="@L.T(destination.Name)" /><div class="hero-shade"></div><div><span class="pill">@L.T(destination.Country) · @Display.Pace(_trip.Pace)</span><h1>@_trip.Name</h1><p><Icon Name="calendar" Size="17" />@Display.Date(_trip.StartDate) – @Display.Date(_trip.EndDate) <span>·</span><Icon Name="people" Size="17" />@_trip.Travelers @L.T("os.") <span>·</span> @Display.Money(_trip.Budget) @L.T("budżetu")</p></div><button class="button hero-button" @onclick="Export"><Icon Name="download" Size="17" />@L.T("Zapisz plan")</button></div>
+    <div class="trip-tabs" role="tablist" aria-label="@L.T("Sekcje podróży")">@foreach (var tab in Tabs) { <button role="tab" aria-selected="@(_tab == tab.Key)" class="@(_tab == tab.Key ? "active" : "")" @onclick="() => _tab = tab.Key"><Icon Name="@tab.Icon" Size="17" />@tab.Label</button> }</div>
     @if (_message is not null) { <div class="notice success" role="status">@_message</div> }
     @if (_error is not null) { <div class="notice error" role="alert">@_error</div> }
-    @if (metadata.Conflict is not null) { <div class="notice">Ta podróż ma dwie wersje. <a class="text-link" href="/account">Rozwiąż konflikt w ustawieniach konta</a></div> }
-    @if (!canEdit) { <div class="notice subtle">Masz dostęp do przeglądania tej podróży.</div> }
-    @if (metadata.Version != _loadedVersion) { <div class="notice">Dostępna jest nowsza wersja podróży. <button class="text-link" @onclick="Reload">Wczytaj ją i porzuć niezapisane zmiany</button></div> }
+    @if (metadata.Conflict is not null) { <div class="notice">@L.T("Ta podróż ma dwie wersje.") <a class="text-link" href="/account">@L.T("Rozwiąż konflikt w ustawieniach konta")</a></div> }
+    @if (!canEdit) { <div class="notice subtle">@L.T("Masz dostęp do przeglądania tej podróży.")</div> }
+    @if (metadata.Version != _loadedVersion) { <div class="notice">@L.T("Dostępna jest nowsza wersja podróży.") <button class="text-link" @onclick="Reload">@L.T("Wczytaj ją i porzuć niezapisane zmiany")</button></div> }
     @if (_tab == "plan")
     {
-        <div class="section-heading"><div><h2>Każdy dzień to nowa historia</h2><p class="muted">Godziny w strefie @destination.TimeZoneId. Zostaw trochę miejsca na spontaniczność.</p></div>@if (canEdit) { <button class="button secondary small" @onclick="OpenRegenerate"><Icon Name="sparkles" Size="17" />Ułóż plan ponownie</button> }</div>
-        <div class="day-tabs">@for (var i = 1; i <= _trip.Days; i++) { var n = i; <button class="@(_day == n ? "active" : "")" @onclick="() => _day = n"><strong>Dzień @n</strong><span>@Display.Date(_trip.StartDate.AddDays(n - 1))</span></button> }</div>
+        <div class="section-heading"><div><h2>@L.T("Każdy dzień to nowa historia")</h2><p class="muted">@L.T("Godziny w strefie") @destination.TimeZoneId. @L.T("Zostaw trochę miejsca na spontaniczność.")</p></div>@if (canEdit) { <div class="button-row"><button class="text-link" disabled="@_busy" @onclick="RefreshNames">@L.T("Odśwież nazwy miejsc")</button><button class="button secondary small" @onclick="OpenRegenerate"><Icon Name="sparkles" Size="17" />@L.T("Ułóż plan ponownie")</button></div> }</div>
+        <div class="day-tabs">@for (var i = 1; i <= _trip.Days; i++) { var n = i; <button class="@(_day == n ? "active" : "")" @onclick="() => _day = n"><strong>@L.F($"Dzień {n}")</strong><span>@Display.Date(_trip.StartDate.AddDays(n - 1))</span></button> }</div>
         var stops = _trip.Itinerary.FirstOrDefault(x => x.Number == _day)?.Stops ?? [];
+        <p class="footnote">@L.F($"Plan dnia: {stops.Sum(x => x.DurationMinutes)} min wizyt i {stops.Sum(x => x.TravelMinutes)} min szacowanych przejść.")</p>
         <div class="itinerary-layout"><div class="timeline">
-            @if (stops.Count == 0) { <div class="panel empty-state"><Icon Name="leaf" Size="42" /><h3>Dzień we własnym rytmie</h3><p>Dodaj miejsce przez wyszukiwarkę lub ułóż plan ponownie z pobranego katalogu.</p></div> }
+            @if (stops.Count == 0) { <div class="panel empty-state"><Icon Name="leaf" Size="42" /><h3>@L.T("Dzień we własnym rytmie")</h3><p>@L.T("Dodaj miejsce przez wyszukiwarkę lub ułóż plan ponownie z pobranego katalogu.")</p></div> }
             @for (var i = 0; i < stops.Count; i++)
             {
                 var stop = stops[i]; var number = i + 1;
-                <div class="timeline-stop @(stop.Completed ? "completed" : "")"><div class="timeline-time">@stop.StartsAt.ToString("HH:mm")<span>@stop.DurationMinutes min</span></div><span class="timeline-dot">@number</span><div class="panel stop-card"><div><span class="eyebrow">@((number == 1 ? "ZACZNIJ DZIEŃ" : "KOLEJNE ODKRYCIE"))</span><h3>@stop.Title</h3><p><Icon Name="clock" Size="14" />@stop.DurationMinutes min <span>·</span><Icon Name="wallet" Size="14" />@(stop.EstimatedCostPln is null ? "Cena nieznana" : stop.EstimatedCostPln == 0 ? "Bez opłaty według źródła" : Display.Money(stop.EstimatedCostPln.Value))</p><a class="text-link small-link" target="_blank" rel="noopener noreferrer" href="@MapUrl(stop)">Otwórz w Mapach Google <Icon Name="arrow" Size="14" /></a></div>@if (!string.IsNullOrWhiteSpace(stop.OpeningHours)) { <small class="opening-hours">Godziny w OSM: @stop.OpeningHours</small> }@if (canEdit) { <div class="stop-actions"><button class="text-link" @onclick="() => EditStop(stop)">Edytuj</button><button class="text-link danger-text" @onclick="() => RemoveStop(stop.Id)">Usuń</button><button class="check-button @(stop.Completed ? "checked" : "")" aria-label="@(stop.Completed ? $"Cofnij ukończenie: {stop.Title}" : $"Oznacz jako odwiedzone: {stop.Title}")" @onclick="() => ToggleStop(stop.Id)"><Icon Name="check" Size="17" /></button></div> }</div></div>
-                @if (i < stops.Count - 1) { <div class="travel-buffer"><Icon Name="pin" Size="13" />czas przejścia i trasę sprawdzisz na mapie</div> }
+                <div class="timeline-stop @(stop.Completed ? "completed" : "")"><div class="timeline-time">@stop.StartsAt.ToString("HH:mm")<span>@stop.DurationMinutes min</span></div><span class="timeline-dot">@number</span><div class="panel stop-card"><div><span class="eyebrow">@((number == 1 ? L.T("ZACZNIJ DZIEŃ") : L.T("KOLEJNE ODKRYCIE")))</span><h3>@Display.StopName(stop)</h3><small>@Display.DurationBasis(stop.VisitDuration)</small>@if (stop.VisitDuration?.SourceUrl is { } durationSource) { <a class="text-link small-link" href="@durationSource" target="_blank" rel="noopener noreferrer">@L.T("Źródło czasu wizyty") ↗</a> }<p><Icon Name="clock" Size="14" />@stop.DurationMinutes min <span>·</span><Icon Name="wallet" Size="14" />@(stop.EstimatedCostPln is null ? L.T("Cena nieznana") : stop.EstimatedCostPln == 0 ? L.T("Bez opłaty według źródła") : Display.Money(stop.EstimatedCostPln.Value))</p><a class="text-link small-link" target="_blank" rel="noopener noreferrer" href="@MapUrl(stop)">@L.T("Otwórz w Mapach Google") <Icon Name="arrow" Size="14" /></a></div>@if (!string.IsNullOrWhiteSpace(stop.OpeningHours)) { <small class="opening-hours">@L.T("Godziny w OSM:") @stop.OpeningHours</small> }@if (canEdit) { <div class="stop-actions"><button class="text-link" @onclick="() => EditStop(stop)">@L.T("Edytuj")</button><button class="text-link danger-text" @onclick="() => RemoveStop(stop.Id)">@L.T("Usuń")</button><button class="check-button @(stop.Completed ? "checked" : "")" aria-label="@(stop.Completed ? L.F($"Cofnij ukończenie: {Display.StopName(stop)}") : L.F($"Oznacz jako odwiedzone: {Display.StopName(stop)}"))" @onclick="() => ToggleStop(stop.Id)"><Icon Name="check" Size="17" /></button></div> }</div></div>
+                @if (i < stops.Count - 1) { <div class="travel-buffer"><Icon Name="pin" Size="13" />@L.T("czas przejścia i trasę sprawdzisz na mapie")</div> }
             }
-            @if (canEdit) { <button class="button secondary full-width add-stop-button" @onclick="AddStop"><Icon Name="plus" Size="17" />Dodaj własny punkt</button> }
-            <p class="footnote">Czasy wizyt są szacunkowe. Planer dodaje przerwy i zapas na przejścia. Godziny w OSM mogą być niepełne; sprawdź dni otwarcia i bilety w Mapach Google.</p>
-        </div><aside class="itinerary-aside"><RouteMap Stops="stops" /><div class="panel reminder-card"><span class="stat-icon lavender"><Icon Name="bell" /></span><h3>Podróżuj swoim rytmem</h3><p>Przypomnimy o nieodhaczonym punkcie 15 minut po planowanej godzinie rozpoczęcia.</p><button class="button secondary full-width" @onclick="ToggleReminders">@(Reminders.Enabled ? "Wyłącz przypomnienia" : "Włącz przypomnienia")</button><small>W przeglądarce: przy otwartej aplikacji. Na telefonie: powiadomienia lokalne po zgodzie.</small></div></aside></div>
+            @if (canEdit) { <button class="button secondary full-width add-stop-button" @onclick="AddStop"><Icon Name="plus" Size="17" />@L.T("Dodaj własny punkt")</button> }
+            <p class="footnote">@L.T("Czasy wizyt są szacunkowe. Planer dodaje przerwy i zapas na przejścia. Godziny w OSM mogą być niepełne; sprawdź dni otwarcia i bilety w Mapach Google.") @L.T("Nie ma jednej potwierdzonej średniej dla każdego miejsca. Czas jest zaleceniem konkretnej trasy zwiedzania lub szacunkiem; możesz go edytować.")</p>
+        </div><aside class="itinerary-aside"><RouteMap Stops="stops" /><div class="panel reminder-card"><span class="stat-icon lavender"><Icon Name="bell" /></span><h3>@L.T("Podróżuj swoim rytmem")</h3><p>@L.T("Przypomnimy o nieodhaczonym punkcie 15 minut po planowanej godzinie rozpoczęcia.")</p><button class="button secondary full-width" @onclick="ToggleReminders">@(Reminders.Enabled ? L.T("Wyłącz przypomnienia") : L.T("Włącz przypomnienia"))</button><small>@L.T("W przeglądarce: przy otwartej aplikacji. Na telefonie: powiadomienia lokalne po zgodzie.")</small></div></aside></div>
     }
     else if (_tab == "budget") { <BudgetPanel Trip="_trip" CanEdit="canEdit" Changed="Reload" /> }
     else if (_tab == "packing") { <PreparationPanel Trip="_trip" CanEdit="canEdit" Changed="Reload" /> }
     else if (_tab == "offers") { <OffersPanel Trip="_trip" /> }
     else if (_tab == "sharing")
     {
-        <section class="panel sharing-panel"><span class="stat-icon mint"><Icon Name="people" Size="27" /></span><h2>Lepsze wspomnienia powstają razem.</h2><p class="muted">Udostępnij podróż osobie, która ma już konto Travelio. Zmiany połączą się przy synchronizacji.</p>
-        @if (Workspace.User is null) { <a class="button primary" href="/account">Zaloguj się, aby współdzielić</a> }
-        else if (!metadata.IsOwner) { <p>Tylko właściciel zarządza uczestnikami.</p> }
+        <section class="panel sharing-panel"><span class="stat-icon mint"><Icon Name="people" Size="27" /></span><h2>@L.T("Lepsze wspomnienia powstają razem.")</h2><p class="muted">@L.T("Udostępnij podróż osobie, która ma już konto Travelio. Zmiany połączą się przy synchronizacji.")</p>
+        @if (Workspace.User is null) { <a class="button primary" href="/account">@L.T("Zaloguj się, aby współdzielić")</a> }
+        else if (!metadata.IsOwner) { <p>@L.T("Tylko właściciel zarządza uczestnikami.")</p> }
         else
         {
-            <form class="share-form" @onsubmit="Share" @onsubmit:preventDefault><label>E-mail uczestnika<input type="email" required @bind="_shareEmail" placeholder="przyjaciel@example.com" /></label><label>Uprawnienia<select @bind="_shareRole"><option value="@ParticipantRole.Editor">Może edytować</option><option value="@ParticipantRole.Viewer">Może przeglądać</option></select></label><button type="submit" class="button primary" disabled="@_busy">Udostępnij podróż</button></form>
-            <button class="text-link" @onclick="LoadMembers">Odśwież uczestników</button>
-            @foreach (var member in _members) { <div class="member-row"><span class="avatar avatar-small">@member.Email[..1].ToUpperInvariant()</span><strong>@member.Email</strong><span>@(member.Role == ParticipantRole.Editor ? "Edycja" : "Podgląd")</span><button class="icon-button" aria-label="@($"Odbierz dostęp: {member.Email}")" @onclick="() => RemoveMember(member.UserId)"><Icon Name="close" Size="18" /></button></div> }
-            <p class="footnote">Odebranie dostępu blokuje synchronizację. Wcześniej pobranej kopii offline nie da się zdalnie usunąć.</p>
+            <form class="share-form" @onsubmit="Share" @onsubmit:preventDefault><label>@L.T("E-mail uczestnika")<input type="email" required @bind="_shareEmail" placeholder="przyjaciel@example.com" /></label><label>@L.T("Uprawnienia")<select @bind="_shareRole"><option value="@ParticipantRole.Editor">@L.T("Może edytować")</option><option value="@ParticipantRole.Viewer">@L.T("Może przeglądać")</option></select></label><button type="submit" class="button primary" disabled="@_busy">@L.T("Udostępnij podróż")</button></form>
+            <button class="text-link" @onclick="LoadMembers">@L.T("Odśwież uczestników")</button>
+            @foreach (var member in _members) { <div class="member-row"><span class="avatar avatar-small">@member.Email[..1].ToUpperInvariant()</span><strong>@member.Email</strong><span>@(member.Role == ParticipantRole.Editor ? L.T("Edycja") : L.T("Podgląd"))</span><button class="icon-button" aria-label="@L.F($"Odbierz dostęp: {member.Email}")" @onclick="() => RemoveMember(member.UserId)"><Icon Name="close" Size="18" /></button></div> }
+            <p class="footnote">@L.T("Odebranie dostępu blokuje synchronizację. Wcześniej pobranej kopii offline nie da się zdalnie usunąć.")</p>
         }</section>
     }
     else if (_tab == "notes")
     {
-        <div class="panel"><h2>Przestrzeń na Twoje pomysły</h2><p class="muted">Adres kawiarni, polecenie od znajomych, małe rzeczy do zapamiętania.</p><label>Notatki<textarea @bind="_trip.Notes" rows="8" maxlength="10000" disabled="@(!canEdit)"></textarea></label>
+        <div class="panel"><h2>@L.T("Przestrzeń na Twoje pomysły")</h2><p class="muted">@L.T("Adres kawiarni, polecenie od znajomych, małe rzeczy do zapamiętania.")</p><label>@L.T("Notatki")<textarea @bind="_trip.Notes" rows="8" maxlength="10000" disabled="@(!canEdit)"></textarea></label>
         @if (canEdit)
         {
-            <div class="form-grid"><label>Nazwa podróży<input @bind="_trip.Name" maxlength="100" /></label><label>Budżet (PLN)<input type="number" min="0" max="100000000" step="0.01" @bind="_trip.Budget" /></label></div>
-            <div class="form-grid"><label>Data wyjazdu<input type="date" @bind="_trip.StartDate" /></label><label>Liczba dni<input type="number" min="1" max="30" @bind="_trip.Days" /></label><label>Podróżnicy<input type="number" min="1" max="20" @bind="_trip.Travelers" /></label></div>
-            <p class="footnote">Zmiana daty przesuwa plan i przypomnienia. Aby skrócić wyjazd, najpierw przenieś lub usuń punkty z końcowych dni. Zapisane kwoty wydatków pozostają bez zmian.</p>
-            <button class="button primary" disabled="@_busy" @onclick="SaveNotes">Zapisz zmiany</button>
+            <div class="form-grid"><label>@L.T("Nazwa podróży")<input @bind="_trip.Name" maxlength="100" /></label><label>@L.T("Budżet (PLN)")<input type="number" min="0" max="100000000" step="0.01" @bind="_trip.Budget" /></label></div>
+            <div class="form-grid"><label>@L.T("Data wyjazdu")<input type="date" @bind="_trip.StartDate" /></label><label>@L.T("Liczba dni")<input type="number" min="1" max="30" @bind="_trip.Days" /></label><label>@L.T("Podróżnicy")<input type="number" min="1" max="20" @bind="_trip.Travelers" /></label></div>
+            <p class="footnote">@L.T("Zmiana daty przesuwa plan i przypomnienia. Aby skrócić wyjazd, najpierw przenieś lub usuń punkty z końcowych dni. Zapisane kwoty wydatków pozostają bez zmian.")</p>
+            <button class="button primary" disabled="@_busy" @onclick="SaveNotes">@L.T("Zapisz zmiany")</button>
         }
         </div>
-        @if (metadata.IsOwner) { <div class="danger-zone"><p>Usunięcie podróży obejmuje jej plan i wydatki.</p><button class="button danger" @onclick="() => _delete = true"><Icon Name="trash" Size="17" />Usuń podróż</button></div> }
+        @if (metadata.IsOwner) { <div class="danger-zone"><p>@L.T("Usunięcie podróży obejmuje jej plan i wydatki.")</p><button class="button danger" @onclick="() => _delete = true"><Icon Name="trash" Size="17" />@L.T("Usuń podróż")</button></div> }
     }
 }
-else { <div class="empty-state"><h1>Nie znaleźliśmy tej podróży.</h1><a href="/trips">Wróć do swoich planów</a></div> }
+else { <div class="empty-state"><h1>@L.T("Nie znaleźliśmy tej podróży.")</h1><a href="/trips">@L.T("Wróć do swoich planów")</a></div> }
 
 @if (_regenerate && _trip is not null)
 {
-    <Modal Title="Ułożyć plan od nowa?" Close="() => _regenerate = false"><p>Nowy plan zastąpi obecne punkty, w tym własne miejsca i oznaczenia odwiedzin. Wydatki, notatki i lista pakowania zostaną zachowane.</p><label>Tempo<select @bind="_draftPace">@foreach (var pace in Enum.GetValues<TravelPace>()) { <option value="@pace">@Display.Pace(pace)</option> }</select></label><div class="form-actions"><button class="button secondary" @onclick="() => _regenerate = false">Zachowaj obecny</button><button class="button primary" disabled="@_busy" @onclick="Regenerate">@(_busy ? "Układam plan…" : "Ułóż nowy plan")</button></div></Modal>
+    <Modal Title="@L.T("Ułożyć plan od nowa?")" Close="() => _regenerate = false"><p>@L.T("Nowy plan zastąpi obecne punkty, w tym własne miejsca i oznaczenia odwiedzin. Wydatki, notatki i lista pakowania zostaną zachowane.")</p><label>@L.T("Tempo")<select @bind="_draftPace">@foreach (var pace in Enum.GetValues<TravelPace>()) { <option value="@pace">@Display.Pace(pace)</option> }</select></label><div class="form-actions"><button class="button secondary" @onclick="() => _regenerate = false">@L.T("Zachowaj obecny")</button><button class="button primary" disabled="@_busy" @onclick="Regenerate">@(_busy ? L.T("Układam plan…") : L.T("Ułóż nowy plan"))</button></div></Modal>
 }
 @if (_delete)
 {
-    <Modal Title="Usunąć tę podróż?" Close="() => _delete = false"><p>Podróż zniknie z Twojego konta po synchronizacji. Możesz wcześniej pobrać jej kopię przyciskiem „Zapisz plan”.</p><div class="form-actions"><button class="button secondary" @onclick="() => _delete = false">Anuluj</button><button class="button danger" @onclick="Delete">Usuń podróż</button></div></Modal>
+    <Modal Title="@L.T("Usunąć tę podróż?")" Close="() => _delete = false"><p>@L.T("Podróż zniknie z Twojego konta po synchronizacji. Możesz wcześniej pobrać jej kopię przyciskiem „Zapisz plan”.")</p><div class="form-actions"><button class="button secondary" @onclick="() => _delete = false">@L.T("Anuluj")</button><button class="button danger" @onclick="Delete">@L.T("Usuń podróż")</button></div></Modal>
 }
 @if (_addStop && _trip is not null) { <StopEditor Trip="_trip" Day="_day" Stop="_editingStop" Close="() => _addStop = false" Saved="StopSaved" /> }
 @code {
@@ -93,7 +94,7 @@ else { <div class="empty-state"><h1>Nie znaleźliśmy tej podróży.</h1><a href
     private bool _regenerate, _delete, _addStop, _busy;
     private ParticipantRole _shareRole = ParticipantRole.Editor;
     private List<ParticipantInfo> _members = [];
-    private static readonly (string Key, string Label, string Icon)[] Tabs = [("plan","Plan podróży","map"),("budget","Budżet","wallet"),("packing","Przygotowania","checklist"),("offers","Noclegi i loty","plane"),("sharing","Razem","people"),("notes","Notatki i ustawienia","settings")];
+    private static (string Key, string Label, string Icon)[] Tabs => [("plan",L.T("Plan podróży"),"map"),("budget",L.T("Budżet"),"wallet"),("packing",L.T("Przygotowania"),"checklist"),("offers",L.T("Noclegi i loty"),"plane"),("sharing",L.T("Razem"),"people"),("notes",L.T("Notatki i ustawienia"),"settings")];
     protected override void OnParametersSet()
     {
         // Layout refreshes connectivity every 30 seconds. Preserve unsaved editor input.
@@ -111,7 +112,7 @@ else { <div class="empty-state"><h1>Nie znaleźliśmy tej podróży.</h1><a href
         _error = null; _message = null; _busy = true;
         try { await action(); if (message is not null) _message = message; }
         catch (Exception ex) when (ex is DomainException or ApiException or HttpRequestException or TaskCanceledException or JSException)
-        { _error = ex is DomainException or ApiException ? ex.Message : "Operacja się nie powiodła. Sprawdź połączenie i pamięć urządzenia."; }
+        { _error = ex is DomainException or ApiException ? L.T(ex.Message) : L.T("Operacja się nie powiodła. Sprawdź połączenie i pamięć urządzenia."); }
         finally { _busy = false; }
     }
     private async Task Persist()
@@ -123,47 +124,56 @@ else { <div class="empty-state"><h1>Nie znaleźliśmy tej podróży.</h1><a href
     private Task ToggleStop(Guid id) => Run(async () => { var stop = _trip!.Itinerary.SelectMany(x => x.Stops).Single(x => x.Id == id); stop.Completed = !stop.Completed; await Persist(); });
     private Task SaveNotes() => Run(async () =>
     {
-        if (_trip!.Days is < 1 or > 30) throw new DomainException("Wyjazd może trwać od 1 do 30 dni.");
+        if (_trip!.Days is < 1 or > 30) throw new DomainException(L.T("Wyjazd może trwać od 1 do 30 dni."));
         if (_trip.Itinerary.Any(d => d.Number > _trip.Days && d.Stops.Count > 0))
-            throw new DomainException("Końcowe dni zawierają miejsca. Przenieś je lub usuń przed skróceniem podróży.");
+            throw new DomainException(L.T("Końcowe dni zawierają miejsca. Przenieś je lub usuń przed skróceniem podróży."));
         _trip.Itinerary.RemoveAll(d => d.Number > _trip.Days);
         for (var n = 1; n <= _trip.Days; n++)
             if (!_trip.Itinerary.Any(d => d.Number == n)) _trip.Itinerary.Add(new PlanDay { Number = n });
         _day = Math.Min(_day, _trip.Days);
         await Persist();
-    }, "Zapisano zmiany na urządzeniu.");
+    }, L.T("Zapisano zmiany na urządzeniu."));
     private void OpenRegenerate() { _draftPace = _trip!.Pace; _regenerate = true; }
+    private Task RefreshNames() => Run(async () =>
+    {
+        var places = await Data.PlacesAsync(Catalog.Resolve(_trip!));
+        var count = Travelio.Application.Services.PlaceNameUpdater.Apply(_trip!, places.Value.Attractions);
+        if (count == 0) { _message = L.T("Źródło nie zawiera nowych tłumaczeń nazw dla tego planu."); return; }
+        _trip!.DestinationSnapshot = Catalog.Resolve(_trip) with { Attractions = places.Value.Attractions };
+        await Persist();
+        _message = L.T("Zaktualizowano nazwy miejsc bez zmiany harmonogramu.");
+    });
     private Task Regenerate() => Run(async () =>
     {
         var (destination, notice) = await Data.ForPlanningAsync(Catalog.Resolve(_trip!), Workspace.IsOnline);
-        if (destination.Attractions.Length == 0) throw new DomainException("Brak zapisanych miejsc do układania planu. Obecny plan pozostaje bez zmian. Połącz się z serwerem i spróbuj ponownie.");
+        if (destination.Attractions.Length == 0) throw new DomainException(L.T("Brak zapisanych miejsc do układania planu. Obecny plan pozostaje bez zmian. Połącz się z serwerem i spróbuj ponownie."));
         _trip!.DestinationSnapshot = destination; _trip.Pace = _draftPace;
         _trip.Itinerary = Planner.Generate(destination, _trip.Days, _trip.Pace, _trip.Travelers).ToList();
         await Persist(); _regenerate = false;
-        _message = $"Plan gotowy: {_trip!.Itinerary.Sum(x => x.Stops.Count)} miejsc z {destination.Attractions.Length} dostępnych. Tempo: {Display.Pace(_trip.Pace)}. {notice}";
+        _message = L.F($"Plan gotowy: {_trip!.Itinerary.Sum(x => x.Stops.Count)} miejsc z {destination.Attractions.Length} dostępnych. Tempo: {Display.Pace(_trip.Pace)}. {notice}");
     });
     private void AddStop() { _editingStop = null; _addStop = true; }
     private void EditStop(PlanStop stop) { _editingStop = stop; _addStop = true; }
     private async Task StopSaved() { _addStop = false; Reload(); await Reminders.RefreshAsync(); }
     private Task RemoveStop(Guid id) => Run(async () =>
-    { foreach (var day in _trip!.Itinerary) day.Stops.RemoveAll(x => x.Id == id); await Persist(); }, "Usunięto punkt. Możesz go ponownie dodać przez wyszukiwarkę.");
+    { foreach (var day in _trip!.Itinerary) day.Stops.RemoveAll(x => x.Id == id); await Persist(); }, L.T("Usunięto punkt. Możesz go ponownie dodać przez wyszukiwarkę."));
     private Task Delete() => Run(async () => { _trip!.IsDeleted = true; await Persist(); Navigation.NavigateTo("/trips"); });
     private Task Share() => Run(async () =>
     {
         await Workspace.SyncAsync();
-        if (Workspace.Metadata(Id)?.Pending == true || !Workspace.SessionValid) throw new DomainException("Najpierw połącz konto i zsynchronizuj podróż.");
+        if (Workspace.Metadata(Id)?.Pending == true || !Workspace.SessionValid) throw new DomainException(L.T("Najpierw połącz konto i zsynchronizuj podróż."));
         await Api.ShareAsync(Id, _shareEmail, _shareRole);
         _shareEmail = "";
         _members = await Api.GetMembersAsync(Id) ?? [];
-    }, "Uczestnik ma już dostęp do podróży.");
+    }, L.T("Uczestnik ma już dostęp do podróży."));
     private Task LoadMembers() => Run(async () => { _members = await Api.GetMembersAsync(Id) ?? []; });
-    private Task RemoveMember(string id) => Run(async () => { await Api.RemoveMemberAsync(Id, id); _members = await Api.GetMembersAsync(Id) ?? []; }, "Dostęp został odebrany.");
+    private Task RemoveMember(string id) => Run(async () => { await Api.RemoveMemberAsync(Id, id); _members = await Api.GetMembersAsync(Id) ?? []; }, L.T("Dostęp został odebrany."));
     private Task ToggleReminders() => Run(async () =>
     {
-        if (Reminders.Enabled) { await Reminders.DisableAsync(); _message = "Przypomnienia wyłączone."; }
-        else _message = await Reminders.EnableAsync() ? "Przypomnienia włączone dla wszystkich Twoich podróży." : "Powiadomienia nie są dostępne lub zgoda nie została udzielona. Sprawdź ustawienia urządzenia.";
+        if (Reminders.Enabled) { await Reminders.DisableAsync(); _message = L.T("Przypomnienia wyłączone."); }
+        else _message = await Reminders.EnableAsync() ? L.T("Przypomnienia włączone dla wszystkich Twoich podróży.") : L.T("Powiadomienia nie są dostępne lub zgoda nie została udzielona. Sprawdź ustawienia urządzenia.");
     });
     private Task Export() => JS.InvokeVoidAsync("travelio.download", $"travelio-plan-{Id}.json", System.Text.Json.JsonSerializer.Serialize(_trip, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }), "application/json").AsTask();
-    private static string MapUrl(PlanStop stop) => TravelLinks.GoogleMaps(stop.Title, new(stop.Latitude, stop.Longitude));
+    private static string MapUrl(PlanStop stop) => TravelLinks.GoogleMaps(Display.StopName(stop), new(stop.Latitude, stop.Longitude));
 }
 

@@ -9,6 +9,8 @@ using Travelio.Application;
 using Travelio.Domain;
 using Travelio.Infrastructure;
 using Travelio.Api;
+using Microsoft.AspNetCore.Localization;
+using Travelio.Application.Localization;
 
 var builder = WebApplication.CreateBuilder(args);
 var dataPath = builder.Configuration["Travelio:DataPath"] ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
@@ -92,6 +94,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 app.UseExceptionHandler();
+app.UseRequestLocalization(new RequestLocalizationOptions()
+    .SetDefaultCulture("pl-PL").AddSupportedCultures("pl-PL", "en-GB", "pl", "en")
+    .AddSupportedUICultures("pl-PL", "en-GB", "pl", "en"));
 app.Use(async (context, next) =>
 {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
@@ -102,12 +107,12 @@ app.Use(async (context, next) =>
     catch (DomainException exception)
     {
         context.Response.StatusCode = 400;
-        await context.Response.WriteAsJsonAsync(new ApiError(exception.Message));
+        await context.Response.WriteAsJsonAsync(new ApiError(L.T(exception.Message)));
     }
     catch (TravelDataUnavailableException exception)
     {
         context.Response.StatusCode = 503;
-        await context.Response.WriteAsJsonAsync(new ApiError(exception.Message));
+        await context.Response.WriteAsJsonAsync(new ApiError(L.T(exception.Message)));
     }
 });
 app.UseBlazorFrameworkFiles();

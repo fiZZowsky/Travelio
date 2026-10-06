@@ -7,10 +7,10 @@ public sealed class PlannerTests
 {
     private readonly DemoDestinationCatalog _catalog = new();
     [Theory]
-    [InlineData(TravelPace.Relaxed, 3)]
-    [InlineData(TravelPace.Balanced, 5)]
-    [InlineData(TravelPace.Intensive, 7)]
-    public void Plans_respect_hours_and_never_repeat_attractions(TravelPace pace, int limit)
+    [InlineData(TravelPace.Relaxed)]
+    [InlineData(TravelPace.Balanced)]
+    [InlineData(TravelPace.Intensive)]
+    public void Plans_respect_hours_and_never_repeat_attractions(TravelPace pace)
     {
         foreach (var destination in _catalog.All)
         {
@@ -21,8 +21,9 @@ public sealed class PlannerTests
             Assert.Equal(stops.Length, stops.Select(x => x.AttractionId).Distinct().Count());
             Assert.All(plan, day =>
             {
-                Assert.InRange(day.Stops.Count, 0, limit);
-                var previousEnd = new TimeOnly(9, 0);
+                var policy = ItineraryPlanner.Policy(pace);
+                Assert.True(day.Stops.Sum(x => x.DurationMinutes + x.TravelMinutes) <= policy.ActiveMinutes);
+                var previousEnd = policy.StartsAt;
                 foreach (var stop in day.Stops)
                 {
                     var attraction = destination.Attractions.Single(x => x.Id == stop.AttractionId);
@@ -30,7 +31,7 @@ public sealed class PlannerTests
                     Assert.True(stop.StartsAt >= attraction.OpensAt);
                     var ends = stop.StartsAt.AddMinutes(stop.DurationMinutes);
                     Assert.True(ends <= attraction.ClosesAt);
-                    Assert.True(ends <= new TimeOnly(pace == TravelPace.Intensive ? 20 : 18, 0));
+                    Assert.True(ends <= policy.EndsAt);
                     Assert.Equal(attraction.CostPln * 2, stop.EstimatedCostPln);
                     previousEnd = ends;
                 }
@@ -38,7 +39,7 @@ public sealed class PlannerTests
         }
     }
     [Fact]
-    public void Pace_changes_number_and_duration_of_stops_in_a_dense_live_catalog()
+    public void Pace_changes_time_budget_without_shortening_visits_or_capping_at_seven()
     {
         var places = Enumerable.Range(1, 80).Select(n => new Attraction(n.ToString(), $"Miejsce {n}", "", TravelStyle.Culture,
             new(50.06 + n * .00005, 19.94), 40, null, new(9, 0), new(20, 0))).ToArray();
@@ -47,11 +48,26 @@ public sealed class PlannerTests
         var relaxed = planner.Generate(destination, 5, TravelPace.Relaxed, 2);
         var balanced = planner.Generate(destination, 5, TravelPace.Balanced, 2);
         var intensive = planner.Generate(destination, 5, TravelPace.Intensive, 2);
-        Assert.All(relaxed, day => Assert.Equal(3, day.Stops.Count));
-        Assert.All(balanced, day => Assert.Equal(5, day.Stops.Count));
-        Assert.All(intensive, day => Assert.Equal(7, day.Stops.Count));
-        Assert.True(relaxed[0].Stops[0].DurationMinutes > intensive[0].Stops[0].DurationMinutes);
+        Assert.True(relaxed[0].Stops.Count < balanced[0].Stops.Count);
+        Assert.True(balanced[0].Stops.Count < intensive[0].Stops.Count);
+        Assert.True(intensive[0].Stops.Count > 7);
+        Assert.All(relaxed.Concat(balanced).Concat(intensive).SelectMany(x => x.Stops), stop => Assert.Equal(40, stop.DurationMinutes));
         Assert.All(intensive.SelectMany(x => x.Stops), x => Assert.Null(x.EstimatedCostPln));
+    }
+    [Fact]
+    public void Long_museum_visits_leave_less_room_than_short_viewpoints()
+    {
+        Destination City(int duration) => _catalog.Get("rome") with
+        {
+            Attractions = Enumerable.Range(1, 30).Select(n => new Attraction(n.ToString(), "Test", "", TravelStyle.Culture,
+                _catalog.Get("rome").Location, duration, null, new(8, 0), new(20, 0))).ToArray()
+        };
+        var planner = new ItineraryPlanner();
+        var museums = planner.Generate(City(180), 1, TravelPace.Intensive, 1)[0];
+        var viewpoints = planner.Generate(City(25), 1, TravelPace.Intensive, 1)[0];
+        Assert.InRange(museums.Stops.Count, 1, 3);
+        Assert.True(viewpoints.Stops.Count > 7);
+        Assert.All(museums.Stops, stop => Assert.Equal(180, stop.DurationMinutes));
     }
     [Fact]
     public void Rejects_invalid_lengths_instead_of_allocating_unbounded_plans()

@@ -4,6 +4,7 @@ using Android.OS;
 using AndroidX.Core.App;
 using Travelio.Application;
 using Travelio.Domain;
+using Travelio.Application.Localization;
 namespace Travelio.Maui.Platforms.Android;
 
 public sealed class AndroidNotificationService : INotificationService
@@ -26,6 +27,7 @@ public sealed class AndroidNotificationService : INotificationService
         {
             var intent = IntentFor(reminder.StopId.ToString());
             intent.PutExtra("title", reminder.Title);
+            intent.PutExtra("caption", L.T("Twój plan Travelio"));
             var pending = PendingIntent.GetBroadcast(_context, 0, intent, PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable)!;
             // Inexact alarms respect platform battery policies without special exact-alarm access.
             manager.SetAndAllowWhileIdle(AlarmType.RtcWakeup, reminder.DueAt.ToUnixTimeMilliseconds(), pending);
@@ -55,7 +57,7 @@ public sealed class AndroidNotificationService : INotificationService
     {
         if (!OperatingSystem.IsAndroidVersionAtLeast(26)) return;
         var manager = (NotificationManager)_context.GetSystemService(Context.NotificationService)!;
-        manager.CreateNotificationChannel(new NotificationChannel(ChannelId, "Plan podróży", NotificationImportance.Default)
+        manager.CreateNotificationChannel(new NotificationChannel(ChannelId, L.T("Plan podróży"), NotificationImportance.Default)
         { Description = "Przypomnienia o nieodhaczonych punktach Twojego planu." });
     }
 }
@@ -71,7 +73,7 @@ public sealed class TripReminderReceiver : BroadcastReceiver
         if (context is null || intent is null || !NotificationManagerCompat.From(context).AreNotificationsEnabled()) return;
         var openApp = context.PackageManager?.GetLaunchIntentForPackage(context.PackageName!);
         var builder = new NotificationCompat.Builder(context, AndroidNotificationService.ChannelId)
-            .SetSmallIcon(Resource.Drawable.notification_icon).SetContentTitle("Twój plan Travelio")
+            .SetSmallIcon(Resource.Drawable.notification_icon).SetContentTitle(intent.GetStringExtra("caption") ?? "Travelio")
             .SetContentText(intent.GetStringExtra("title") ?? "Sprawdź swój plan podróży").SetAutoCancel(true);
         if (openApp is not null) builder.SetContentIntent(PendingIntent.GetActivity(context, 0, openApp, PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable));
         NotificationManagerCompat.From(context).Notify(intent.DataString, 1, builder.Build());

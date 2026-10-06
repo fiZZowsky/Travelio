@@ -1,3 +1,4 @@
+using Travelio.Application.Localization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -100,10 +101,10 @@ public sealed class ApiClient(HttpClient http)
         catch (JsonException) { }
         throw new ApiException(response.StatusCode, message ?? response.StatusCode switch
         {
-            HttpStatusCode.Unauthorized => "Zaloguj się ponownie, aby synchronizować dane.",
-            HttpStatusCode.Forbidden => "Nie masz uprawnień do tej operacji.",
-            HttpStatusCode.TooManyRequests => "Zbyt wiele prób. Spróbuj ponownie za minutę.",
-            _ => "Nie udało się zapisać danych na serwerze. Zmiany lokalne są zachowane."
+            HttpStatusCode.Unauthorized => L.T("Zaloguj się ponownie, aby synchronizować dane."),
+            HttpStatusCode.Forbidden => L.T("Nie masz uprawnień do tej operacji."),
+            HttpStatusCode.TooManyRequests => L.T("Zbyt wiele prób. Spróbuj ponownie za minutę."),
+            _ => L.T("Nie udało się zapisać danych na serwerze. Zmiany lokalne są zachowane.")
         });
     }
 }
@@ -111,7 +112,7 @@ public sealed class ApiException(HttpStatusCode statusCode, string message) : Ex
 {
     public HttpStatusCode StatusCode { get; } = statusCode;
 }
-public sealed class TripConflictException(TripEnvelope? remote) : Exception("Ta podróż zmieniła się na innym urządzeniu.")
+public sealed class TripConflictException(TripEnvelope? remote) : Exception(L.T("Ta podróż zmieniła się na innym urządzeniu."))
 {
     public TripEnvelope? Remote { get; } = remote;
 }

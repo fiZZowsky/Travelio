@@ -4,36 +4,38 @@
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 @inject ReminderCoordinator Reminders
+@inject LanguageService Language
 
 <div class="app-shell">
     <aside class="sidebar @(_menuOpen ? "open" : "")">
-        <a class="brand" href="/" aria-label="Travelio – strona główna"><span class="brand-mark"><Icon Name="plane" Size="24" /></span>travelio<span class="brand-dot">.</span></a>
-        <div class="nav-caption">TWÓJ KAWAŁEK ŚWIATA</div>
-        <nav aria-label="Nawigacja główna" @onclick="CloseMenu">
-            <NavLink href="/" Match="NavLinkMatch.All"><Icon Name="home" />Pulpit</NavLink>
-            <NavLink href="/discover"><Icon Name="compass" />Odkrywaj<span class="small-new">Dla Ciebie</span></NavLink>
-            <NavLink href="/trips"><Icon Name="case" />Moje podróże</NavLink>
-            <NavLink href="/passport"><Icon Name="globe" />Mój świat</NavLink>
-            <NavLink href="/budget"><Icon Name="wallet" />Budżet i wydatki</NavLink>
-            <NavLink href="/preparation"><Icon Name="checklist" />Przygotowania</NavLink>
+        <a class="brand" href="/" aria-label="@L.T("Travelio – strona główna")"><span class="brand-mark"><Icon Name="plane" Size="24" /></span>travelio<span class="brand-dot">.</span></a>
+        <div class="nav-caption">@L.T("TWÓJ KAWAŁEK ŚWIATA")</div>
+        <nav aria-label="@L.T("Nawigacja główna")" @onclick="CloseMenu">
+            <NavLink href="/" Match="NavLinkMatch.All"><Icon Name="home" />@L.T("Pulpit")</NavLink>
+            <NavLink href="/discover"><Icon Name="compass" />@L.T("Odkrywaj")<span class="small-new">@L.T("Dla Ciebie")</span></NavLink>
+            <NavLink href="/trips"><Icon Name="case" />@L.T("Moje podróże")</NavLink>
+            <NavLink href="/passport"><Icon Name="globe" />@L.T("Mój świat")</NavLink>
+            <NavLink href="/budget"><Icon Name="wallet" />@L.T("Budżet i wydatki")</NavLink>
+            <NavLink href="/preparation"><Icon Name="checklist" />@L.T("Przygotowania")</NavLink>
         </nav>
         <a class="sidebar-inspiration" href="/discover">
             <div class="tiny-planet"><Icon Name="globe" Size="35" /><span>✦</span></div>
-            <strong>Mały krok.<br />Wielka przygoda.</strong>
-            <p>Znajdź kierunek, który<br />pasuje właśnie do Ciebie.</p>
-            <span>Znajdź inspirację <Icon Name="arrow" Size="17" /></span>
+            <strong>@L.T("Mały krok.")<br />@L.T("Wielka przygoda.")</strong>
+            <p>@L.T("Znajdź kierunek, który")<br />@L.T("pasuje właśnie do Ciebie.")</p>
+            <span>@L.T("Znajdź inspirację") <Icon Name="arrow" Size="17" /></span>
         </a>
         <div class="sidebar-bottom">
-            <button class="sync-button" @onclick="Reconnect" title="Sprawdź połączenie i synchronizuj"><span class="status-dot @(Workspace.IsOnline ? "" : "offline")"></span>@Workspace.ConnectionLabel<Icon Name="cloud" Size="18" /></button>
-            <NavLink href="/account" class="account-link"><span class="avatar">@(Workspace.User?.Email[..1].ToUpperInvariant() ?? "T")</span><span><strong>@(Workspace.User is null ? "Odkrywaj po swojemu" : Workspace.User.Email.Split('@')[0])</strong><small>@(Workspace.User is null ? "Twoja lokalna przestrzeń" : "Moje konto")</small></span><Icon Name="settings" Size="18" /></NavLink>
+            <button class="sync-button" @onclick="Reconnect" title="@L.T("Sprawdź połączenie i synchronizuj")"><span class="status-dot @(Workspace.IsOnline ? "" : "offline")"></span>@Workspace.ConnectionLabel<Icon Name="cloud" Size="18" /></button>
+            <NavLink href="/account" class="account-link"><span class="avatar">@(Workspace.User?.Email[..1].ToUpperInvariant() ?? "T")</span><span><strong>@(Workspace.User is null ? L.T("Odkrywaj po swojemu") : Workspace.User.Email.Split('@')[0])</strong><small>@(Workspace.User is null ? L.T("Twoja lokalna przestrzeń") : L.T("Moje konto"))</small></span><Icon Name="settings" Size="18" /></NavLink>
         </div>
     </aside>
-    @if (_menuOpen) { <button class="menu-backdrop" aria-label="Zamknij menu" @onclick="CloseMenu"></button> }
+    @if (_menuOpen) { <button class="menu-backdrop" aria-label="@L.T("Zamknij menu")" @onclick="CloseMenu"></button> }
     <div class="main-shell">
         <header class="topbar">
-            <button class="icon-button mobile-menu" aria-label="Otwórz menu" @onclick="() => _menuOpen = !_menuOpen"><Icon Name="menu" /></button>
-            <div class="breadcrumb">Twoja przestrzeń <span>/</span> <strong>Podróże zaczynają się tutaj</strong></div>
-            <div class="topbar-actions"><span class="local-label"><span class="status-dot @(Workspace.IsOnline ? "" : "offline")"></span>@Workspace.ConnectionLabel</span><a class="icon-button" href="/preparation" aria-label="Przygotowania i alerty"><Icon Name="bell" /></a><a href="/account" class="avatar avatar-small" aria-label="Konto użytkownika">@(Workspace.User?.Email[..1].ToUpperInvariant() ?? "T")</a></div>
+            <label class="language-picker" title="@L.T("Zapisz kopię planu przed zmianą języka, jeśli edytujesz niezapisane dane.")"><span>@L.T("Język")</span><select aria-label="Language / Język" value="@Language.Language" @onchange="ChangeLanguage"><option value="pl">Polski</option><option value="en">English</option></select></label>
+            <button class="icon-button mobile-menu" aria-label="@L.T("Otwórz menu")" @onclick="() => _menuOpen = !_menuOpen"><Icon Name="menu" /></button>
+            <div class="breadcrumb">@L.T("Twoja przestrzeń") <span>/</span> <strong>@L.T("Podróże zaczynają się tutaj")</strong></div>
+            <div class="topbar-actions"><span class="local-label"><span class="status-dot @(Workspace.IsOnline ? "" : "offline")"></span>@Workspace.ConnectionLabel</span><a class="icon-button" href="/preparation" aria-label="@L.T("Przygotowania i alerty")"><Icon Name="bell" /></a><a href="/account" class="avatar avatar-small" aria-label="@L.T("Konto użytkownika")">@(Workspace.User?.Email[..1].ToUpperInvariant() ?? "T")</a></div>
         </header>
         <main id="main-content">
             @if (_error is not null) { <div class="notice error" role="alert">@_error</div> }
@@ -41,16 +43,16 @@
             {
                 @if (!Workspace.IsOnline || Workspace.HasConflicts || (Workspace.User is not null && !Workspace.SessionValid))
                 {
-                    <div class="notice"><Icon Name="cloud" />@Workspace.Status <a href="/account">Szczegóły</a></div>
+                    <div class="notice"><Icon Name="cloud" />@Workspace.Status <a href="/account">@L.T("Szczegóły")</a></div>
                 }
                 <ErrorBoundary @ref="_boundary">
                     <ChildContent>@Body</ChildContent>
-                    <ErrorContent><div class="empty-state"><h1>Coś zatrzymało tę podróż</h1><p>Odśwież stronę. Zapisane dane pozostają na urządzeniu.</p><button class="button primary" @onclick="Reload">Odśwież</button></div></ErrorContent>
+                    <ErrorContent><div class="empty-state"><h1>@L.T("Coś zatrzymało tę podróż")</h1><p>@L.T("Odśwież stronę. Zapisane dane pozostają na urządzeniu.")</p><button class="button primary" @onclick="Reload">@L.T("Odśwież")</button></div></ErrorContent>
                 </ErrorBoundary>
             }
-            else { <div class="loading-state"><span class="loading-compass">✦</span><p>Przygotowujemy Twoją przestrzeń…</p></div> }
+            else { <div class="loading-state"><span class="loading-compass">✦</span><p>@L.T("Przygotowujemy Twoją przestrzeń…")</p></div> }
         </main>
-        <footer class="app-footer"><span>travelio · Zbieraj wspomnienia, nie rzeczy.</span><span>OpenStreetMap · Open-Meteo · GDACS <span class="footer-dot">·</span> Stworzone dla odkrywców</span></footer>
+        <footer class="app-footer"><span>@L.T("travelio · Zbieraj wspomnienia, nie rzeczy.")</span><span>OpenStreetMap · Open-Meteo · GDACS <span class="footer-dot">·</span> @L.T("Stworzone dla odkrywców")</span></footer>
     </div>
 </div>
 
@@ -63,8 +65,8 @@
     {
         Workspace.Changed += OnWorkspaceChanged;
         Navigation.LocationChanged += LocationChanged;
-        try { await Workspace.InitializeAsync(); _ready = true; }
-        catch { _error = "Nie udało się otworzyć pamięci lokalnej. Włącz przechowywanie danych witryn i odśwież stronę."; }
+        try { await Language.InitializeAsync(); Language.Apply(); await Workspace.InitializeAsync(); _ready = true; }
+        catch { _error = L.T("Nie udało się otworzyć pamięci lokalnej. Włącz przechowywanie danych witryn i odśwież stronę."); }
     }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -84,6 +86,11 @@
     private void LocationChanged(object? sender, LocationChangedEventArgs args) { _boundary?.Recover(); _menuOpen = false; }
     private void CloseMenu() => _menuOpen = false;
     private void Reload() => Navigation.NavigateTo(Navigation.Uri, true);
+    private async Task ChangeLanguage(ChangeEventArgs args)
+    {
+        await Language.SetAsync(args.Value?.ToString() ?? "pl");
+        Navigation.NavigateTo(Navigation.Uri, true);
+    }
     public async ValueTask DisposeAsync()
     {
         Workspace.Changed -= OnWorkspaceChanged;

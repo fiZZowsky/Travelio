@@ -1,3 +1,4 @@
+using Travelio.Application.Localization;
 using System.Net.Http.Json;
 using Travelio.Application;
 using Travelio.Domain;
@@ -28,7 +29,7 @@ public sealed class CachedAlertProvider(HttpClient http, ILocalStore store) : IR
             if (cached is { Count: > 0 }) return cached.Select(x => x with
             {
                 Title = "Kopia offline · " + x.Title,
-                Description = "Dane mogą być nieaktualne. " + x.Description,
+                Description = L.T("Dane mogą być nieaktualne. ") + x.Description,
                 IsVerified = false
             }).ToArray();
             return await new UnconfiguredRegionalAlertProvider().GetAlertsAsync(destination, cancellationToken);

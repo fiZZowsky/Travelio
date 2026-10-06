@@ -14,6 +14,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IBudgetService, BudgetService>();
         services.AddSingleton<IPreparationService, PreparationService>();
         services.AddScoped<TravelDataClient>();
+        services.AddScoped<LanguageService>();
         services.AddScoped<IRegionalAlertProvider, CachedAlertProvider>();
         services.AddSingleton<IScheduleMonitor, ScheduleMonitor>();
         services.AddScoped<ApiClient>();

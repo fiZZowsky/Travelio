@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Travelio.Application;
 using Travelio.Application.Services;
 using Travelio.Domain;
+using Travelio.Application.Localization;
 
 namespace Travelio.Infrastructure;
 
@@ -57,9 +58,9 @@ public sealed class OpenTravelDataProvider(IHttpClientFactory factory, IMemoryCa
     public Task<SourcedData<Destination[]>> SearchCitiesAsync(string query, CancellationToken ct = default)
     {
         var q = Query(query);
-        return Cached("cities:" + q, TimeSpan.FromDays(7), async () =>
+        return Cached("cities:" + L.Language + ":" + q, TimeSpan.FromDays(7), async () =>
         {
-            using var json = await Read($"{Endpoint("Geocoding", "https://geocoding-api.open-meteo.com/v1/")}search?name={q}&count=12&language=pl", ct);
+            using var json = await Read($"{Endpoint("Geocoding", "https://geocoding-api.open-meteo.com/v1/")}search?name={q}&count=12&language={L.Language}", ct);
             var cities = json.RootElement.TryGetProperty("results", out var rows)
                 ? rows.EnumerateArray().Where(x => Text(x, "country_code").Length == 2 && Text(x, "timezone").Length > 0).Select(City).ToArray() : [];
             return new SourcedData<Destination[]>(cities, "Open-Meteo / GeoNames", "https://open-meteo.com/en/docs/geocoding-api", DateTimeOffset.UtcNow);
@@ -69,9 +70,9 @@ public sealed class OpenTravelDataProvider(IHttpClientFactory factory, IMemoryCa
     {
         if (!id.StartsWith("geo-", StringComparison.Ordinal)) return catalog.Get(id);
         if (!int.TryParse(id.AsSpan(4), out var number) || number <= 0) throw new DomainException("Nieprawidłowy kierunek.");
-        return await Cached("city:" + id, TimeSpan.FromDays(7), async () =>
+        return await Cached("city:" + L.Language + ":" + id, TimeSpan.FromDays(7), async () =>
         {
-            using var json = await Read($"{Endpoint("Geocoding", "https://geocoding-api.open-meteo.com/v1/")}get?id={number}&language=pl", ct);
+            using var json = await Read($"{Endpoint("Geocoding", "https://geocoding-api.open-meteo.com/v1/")}get?id={number}&language={L.Language}", ct);
             return City(json.RootElement);
         }, ct);
     }
@@ -88,7 +89,7 @@ public sealed class OpenTravelDataProvider(IHttpClientFactory factory, IMemoryCa
     {
         Check(center);
         var lat = Math.Round(center.Latitude, 3); var lon = Math.Round(center.Longitude, 3);
-        return Cached($"places:{N(lat)}:{N(lon)}", TimeSpan.FromHours(24), async () =>
+        return Cached($"places:v2:{L.Language}:{N(lat)}:{N(lon)}", TimeSpan.FromHours(24), async () =>
         {
             var radius = .035;
             var dx = radius / Math.Max(.25, Math.Cos(lat * Math.PI / 180));
@@ -97,7 +98,9 @@ public sealed class OpenTravelDataProvider(IHttpClientFactory factory, IMemoryCa
             var query = $"[out:json][timeout:12][maxsize:67108864];(nwr[name][tourism~\"^(attraction|museum|viewpoint|gallery|zoo|theme_park|hotel|hostel|guest_house|apartment|motel)$\"]({box});nwr[name][historic~\"^(castle|monument)$\"]({box});nwr[name][leisure=park]({box}););out center 700;";
             using var json = await Read(Endpoint("Overpass", "https://overpass-api.de/api/interpreter") + "?data=" + Uri.EscapeDataString(query), ct);
             if (json.RootElement.TryGetProperty("remark", out _)) throw new HttpRequestException("Incomplete Overpass response");
-            return new SourcedData<PlaceCollection>(ParsePlaces(json.RootElement, center), "© OpenStreetMap contributors · ODbL",
+            var places = ParsePlaces(json.RootElement, center);
+            places = places with { Attractions = await AddTranslatedNames(places.Attractions, ct) };
+            return new SourcedData<PlaceCollection>(places, "© OpenStreetMap contributors · ODbL / Wikidata · CC0",
                 "https://www.openstreetmap.org/copyright", DateTimeOffset.UtcNow);
         }, ct);
     }
@@ -107,7 +110,12 @@ public sealed class OpenTravelDataProvider(IHttpClientFactory factory, IMemoryCa
         foreach (var row in root.GetProperty("elements").EnumerateArray())
         {
             if (!row.TryGetProperty("tags", out var tags)) continue;
-            var name = Text(tags, "name:pl"); if (name.Length == 0) name = Text(tags, "name");
+            var names = new Dictionary<string, string>();
+            foreach (var lang in new[] { "pl", "en" })
+                if (Text(tags, "name:" + lang) is { Length: > 0 } label) names[lang] = Cut(label);
+            if (!names.ContainsKey("en") && Text(tags, "int_name") is { Length: > 0 } international) names["en"] = Cut(international);
+            var original = Text(tags, "name");
+            var name = L.Name(original, names);
             if (name.Length == 0) continue;
             var position = row.TryGetProperty("center", out var p) ? p : row;
             if (!position.TryGetProperty("lat", out var latitude) || !position.TryGetProperty("lon", out var longitude)) continue;
@@ -125,14 +133,16 @@ public sealed class OpenTravelDataProvider(IHttpClientFactory factory, IMemoryCa
             }
             var park = Text(tags, "leisure") == "park";
             var castle = Text(tags, "historic") == "castle";
-            if (tourism is not ("attraction" or "museum" or "viewpoint" or "gallery" or "zoo" or "artwork" or "theme_park") && !park && !castle) continue;
+            var monument = Text(tags, "historic") == "monument";
+            if (tourism is not ("attraction" or "museum" or "viewpoint" or "gallery" or "zoo" or "artwork" or "theme_park") && !park && !castle && !monument) continue;
             // Tiny artwork without encyclopedic context is a poor primary stop in an itinerary.
             if (tourism == "artwork" && Text(tags, "wikipedia").Length == 0 && Text(tags, "wikidata").Length == 0) continue;
             var kind = park ? "Park" : castle ? "Zamek" : tourism switch { "museum" => "Muzeum", "viewpoint" => "Punkt widokowy", "gallery" => "Galeria", "zoo" => "Ogród zoologiczny", "artwork" => "Sztuka w przestrzeni miasta", _ => "Atrakcja" };
-            var duration = tourism is "museum" or "zoo" ? 90 : castle ? 75 : park ? 45 : 35;
-            var description = Text(tags, "description:pl"); if (description.Length == 0) description = kind + (address.Length == 0 ? "" : " · " + address);
+            var wikidata = Text(tags, "wikidata");
+            var duration = VisitDurationEstimator.Estimate(tourism, Text(tags, "historic"), Text(tags, "leisure"), wikidata);
+            var description = Text(tags, "description:" + L.Language); if (description.Length == 0) description = L.T(kind) + (address.Length == 0 ? "" : " · " + address);
             var place = new Attraction(id, Cut(name), Cut(description, 500), park || tourism == "viewpoint" ? TravelStyle.Nature : TravelStyle.Culture,
-                location, duration, Text(tags, "fee") == "no" ? 0 : null, new(9, 0), new(20, 0), source, Text(tags, "opening_hours"));
+                location, duration.Minutes, Text(tags, "fee") == "no" ? 0 : null, new(8, 0), new(20, 0), source, Text(tags, "opening_hours"), names, original, wikidata, duration);
             var rank = (Text(tags, "wikipedia").Length > 0 ? 10 : 0) + (castle || tourism is "museum" or "attraction" ? 5 : 0);
             attractions.Add((place, rank));
         }
@@ -142,12 +152,51 @@ public sealed class OpenTravelDataProvider(IHttpClientFactory factory, IMemoryCa
         return new(unique.Take(180).ToArray(), hotels.DistinctBy(x => x.Name.ToLowerInvariant()).OrderBy(x => GeoDistance.Kilometers(center, x.Location)).Take(50).ToArray());
     }
     private static string? SafeWebsite(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http" ? uri.AbsoluteUri : null;
+    private async Task<Attraction[]> AddTranslatedNames(Attraction[] places, CancellationToken ct)
+    {
+        var ids = places.Select(x => x.WikidataId).Where(id => id is not null &&
+            System.Text.RegularExpressions.Regex.IsMatch(id, "^Q[1-9][0-9]{0,11}$")).Distinct().Cast<string>().ToArray();
+        var labels = new Dictionary<string, Dictionary<string, string>>();
+        var missing = new List<string>();
+        foreach (var id in ids)
+            if (cache.TryGetValue<Dictionary<string, string>>("labels:" + id, out var found)) labels[id] = found!;
+            else missing.Add(id);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(6));
+        try
+        {
+            foreach (var batch in missing.Chunk(50))
+            {
+                var url = Endpoint("Wikidata", "https://www.wikidata.org/w/api.php") +
+                    "?action=wbgetentities&format=json&props=labels&languages=pl%7Cen&ids=" + string.Join("%7C", batch);
+                using var json = await Read(url, timeout.Token);
+                foreach (var entity in json.RootElement.GetProperty("entities").EnumerateObject())
+                {
+                    var names = new Dictionary<string, string>();
+                    if (entity.Value.TryGetProperty("labels", out var entries))
+                        foreach (var entry in entries.EnumerateObject())
+                            if (entry.Name is "pl" or "en") names[entry.Name] = Cut(Text(entry.Value, "value"));
+                    labels[entity.Name] = names;
+                    cache.Set("labels:" + entity.Name, names, TimeSpan.FromDays(30));
+                }
+            }
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested && ex is HttpRequestException or JsonException or TaskCanceledException or KeyNotFoundException)
+        { logger.LogInformation("Name translations temporarily unavailable; retaining OpenStreetMap labels."); }
+        return places.Select(place =>
+        {
+            var names = new Dictionary<string, string>(place.LocalizedNames ?? []);
+            if (place.WikidataId is { } id && labels.TryGetValue(id, out var translated))
+                foreach (var (language, value) in translated) names.TryAdd(language, value);
+            return place with { LocalizedNames = names, Name = L.Name(place.Name, names) };
+        }).ToArray();
+    }
     public Task<SourcedData<Attraction[]>> SearchPlacesAsync(string query, Coordinate center, CancellationToken ct = default)
     {
         Check(center); var q = Query(query);
-        return Cached($"search:{q}:{N(center.Latitude)}:{N(center.Longitude)}", TimeSpan.FromDays(7), async () =>
+        return Cached($"search:{L.Language}:{q}:{N(center.Latitude)}:{N(center.Longitude)}", TimeSpan.FromDays(7), async () =>
         {
-            var url = Endpoint("Photon", "https://photon.komoot.io/api/") + $"?q={q}&lat={N(center.Latitude)}&lon={N(center.Longitude)}&limit=12";
+            var url = Endpoint("Photon", "https://photon.komoot.io/api/") + $"?q={q}&lat={N(center.Latitude)}&lon={N(center.Longitude)}&limit=12&lang=en";
             using var json = await Read(url, ct);
             var places = json.RootElement.GetProperty("features").EnumerateArray().Select(row =>
             {

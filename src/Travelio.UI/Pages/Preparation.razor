@@ -1,13 +1,13 @@
 @page "/preparation"
 @inject WorkspaceService Workspace
-<PageTitle>Przygotowania · Travelio</PageTitle>
-<PageHeader Eyebrow="RUSZAJ ZE SPOKOJNĄ GŁOWĄ" Title="Dobre przygotowanie to część przygody." Subtitle="Dokumenty, bagaż i rzeczy, o których łatwo zapomnieć." />
+<PageTitle>@L.T("Przygotowania · Travelio")</PageTitle>
+<PageHeader Eyebrow="@L.T("RUSZAJ ZE SPOKOJNĄ GŁOWĄ")" Title="@L.T("Dobre przygotowanie to część przygody.")" Subtitle="@L.T("Dokumenty, bagaż i rzeczy, o których łatwo zapomnieć.")" />
 @if (Workspace.Trips.Count > 0)
 {
-    <label class="trip-select">Przygotowania do podróży<select value="@SelectedId" @onchange="SelectTrip">@foreach (var trip in Workspace.Trips) { <option value="@trip.Trip.Id">@trip.Trip.Name</option> }</select></label>
+    <label class="trip-select">@L.T("Przygotowania do podróży")<select value="@SelectedId" @onchange="SelectTrip">@foreach (var trip in Workspace.Trips) { <option value="@trip.Trip.Id">@trip.Trip.Name</option> }</select></label>
     @if (Workspace.Find(SelectedId) is { } selected) { <PreparationPanel Trip="selected" CanEdit="@(Workspace.Metadata(SelectedId)?.CanEdit == true)" Changed="Refresh" /> }
 }
-else { <div class="empty-state"><Icon Name="checklist" Size="45" /><h2>Najpierw wybierz swoją przygodę</h2><p>Do każdej podróży przygotujemy osobną listę.</p><a class="button primary" href="/trips">Zaplanuj podróż</a></div> }
+else { <div class="empty-state"><Icon Name="checklist" Size="45" /><h2>@L.T("Najpierw wybierz swoją przygodę")</h2><p>@L.T("Do każdej podróży przygotujemy osobną listę.")</p><a class="button primary" href="/trips">@L.T("Zaplanuj podróż")</a></div> }
 @code {
     private Guid _selected;
     private Guid SelectedId => Workspace.Trips.Any(x => x.Trip.Id == _selected) ? _selected : Workspace.Trips.FirstOrDefault()?.Trip.Id ?? Guid.Empty;

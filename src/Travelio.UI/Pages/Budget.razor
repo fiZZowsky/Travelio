@@ -1,15 +1,15 @@
 @page "/budget"
 @inject WorkspaceService Workspace
-<PageTitle>Budżet i wydatki · Travelio</PageTitle>
-<PageHeader Eyebrow="WIĘCEJ WSPOMNIEŃ, MNIEJ ZMARTWIEŃ" Title="Dobry plan zaczyna się od budżetu." Subtitle="Zapisuj wydatki, porównuj kategorie i miej spokojną głowę." />
-<div class="stats-grid"><div class="stat-card"><span class="stat-icon mint"><Icon Name="wallet" /></span><div><span>Łączne wydatki</span><strong>@Display.Money(Workspace.Trips.Sum(x => x.Trip.Spent))</strong></div></div><div class="stat-card"><span class="stat-icon peach"><Icon Name="case" /></span><div><span>Zaplanowany budżet</span><strong>@Display.Money(Workspace.Trips.Sum(x => x.Trip.Budget))</strong></div></div><div class="stat-card"><span class="stat-icon lavender"><Icon Name="globe" /></span><div><span>Podróże w zestawieniu</span><strong>@Workspace.Trips.Count</strong></div></div></div>
+<PageTitle>@L.T("Budżet i wydatki · Travelio")</PageTitle>
+<PageHeader Eyebrow="@L.T("WIĘCEJ WSPOMNIEŃ, MNIEJ ZMARTWIEŃ")" Title="@L.T("Dobry plan zaczyna się od budżetu.")" Subtitle="@L.T("Zapisuj wydatki, porównuj kategorie i miej spokojną głowę.")" />
+<div class="stats-grid"><div class="stat-card"><span class="stat-icon mint"><Icon Name="wallet" /></span><div><span>@L.T("Łączne wydatki")</span><strong>@Display.Money(Workspace.Trips.Sum(x => x.Trip.Spent))</strong></div></div><div class="stat-card"><span class="stat-icon peach"><Icon Name="case" /></span><div><span>@L.T("Zaplanowany budżet")</span><strong>@Display.Money(Workspace.Trips.Sum(x => x.Trip.Budget))</strong></div></div><div class="stat-card"><span class="stat-icon lavender"><Icon Name="globe" /></span><div><span>@L.T("Podróże w zestawieniu")</span><strong>@Workspace.Trips.Count</strong></div></div></div>
 @if (Workspace.Trips.Count > 0)
 {
-    <div class="panel portfolio-chart"><h3>Wydatki według podróży</h3>@foreach (var trip in Workspace.Trips) { <div class="portfolio-row"><span>@trip.Trip.Name</span><div><span style="@($"width:{Math.Clamp(trip.Trip.Spent / Math.Max(1, Workspace.Trips.Max(x => x.Trip.Spent)) * 100, 0, 100).ToString(CultureInfo.InvariantCulture)}%")"></span></div><strong>@Display.Money(trip.Trip.Spent)</strong></div> }</div>
-    <label class="trip-select">Szczegóły podróży<select value="@SelectedId" @onchange="SelectTrip">@foreach (var trip in Workspace.Trips) { <option value="@trip.Trip.Id">@trip.Trip.Name</option> }</select></label>
+    <div class="panel portfolio-chart"><h3>@L.T("Wydatki według podróży")</h3>@foreach (var trip in Workspace.Trips) { <div class="portfolio-row"><span>@trip.Trip.Name</span><div><span style="@($"width:{Math.Clamp(trip.Trip.Spent / Math.Max(1, Workspace.Trips.Max(x => x.Trip.Spent)) * 100, 0, 100).ToString(CultureInfo.InvariantCulture)}%")"></span></div><strong>@Display.Money(trip.Trip.Spent)</strong></div> }</div>
+    <label class="trip-select">@L.T("Szczegóły podróży")<select value="@SelectedId" @onchange="SelectTrip">@foreach (var trip in Workspace.Trips) { <option value="@trip.Trip.Id">@trip.Trip.Name</option> }</select></label>
     @if (Workspace.Find(SelectedId) is { } selected) { <BudgetPanel Trip="selected" CanEdit="@(Workspace.Metadata(SelectedId)?.CanEdit == true)" Changed="Refresh" /> }
 }
-else { <div class="empty-state"><Icon Name="wallet" Size="45" /><h2>Na razie bez wydatków</h2><p>Najpierw zaplanuj podróż, a potem dodaj do niej koszty.</p><a class="button primary" href="/trips">Moje podróże</a></div> }
+else { <div class="empty-state"><Icon Name="wallet" Size="45" /><h2>@L.T("Na razie bez wydatków")</h2><p>@L.T("Najpierw zaplanuj podróż, a potem dodaj do niej koszty.")</p><a class="button primary" href="/trips">@L.T("Moje podróże")</a></div> }
 @code {
     private Guid _selected;
     private Guid SelectedId => Workspace.Trips.Any(x => x.Trip.Id == _selected) ? _selected : Workspace.Trips.FirstOrDefault()?.Trip.Id ?? Guid.Empty;

@@ -29,7 +29,7 @@
             const due = Date.parse(reminder.dueAt);
             if (due <= now && due > now - 30 * 60 * 1000 && !notified.has(reminder.stopId)) {
                 notified.add(reminder.stopId);
-                const options = { body: "Jeśli punkt jest już za Tobą, oznacz go w planie podróży.", icon: "/icon.svg", tag: reminder.stopId };
+                const options = { body: document.documentElement.lang === 'en' ? 'Mark this stop as visited when you have finished.' : 'Jeśli punkt jest już za Tobą, oznacz go w planie podróży.', icon: "/icon.svg", tag: reminder.stopId };
                 if (navigator.serviceWorker?.controller)
                     navigator.serviceWorker.ready.then(registration => registration.showNotification(reminder.title, options)).catch(() => {});
                 else {
@@ -43,8 +43,9 @@
     let countryFeatures;
     const isoCodes = "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(" ");
     const countries = () => {
-        const names = new Intl.DisplayNames(["pl"], { type: "region" });
-        return isoCodes.map(code => ({ code, name: names.of(code) })).sort((a, b) => a.name.localeCompare(b.name, "pl"));
+        const language = document.documentElement.lang || "pl";
+        const names = new Intl.DisplayNames([language], { type: "region" });
+        return isoCodes.map(code => ({ code, name: names.of(code) })).sort((a, b) => a.name.localeCompare(b.name, language));
     };
     const drawGlobe = () => {
         const s = globeState;
@@ -79,6 +80,7 @@
         ctx.beginPath(); path({ type: "Sphere" }); ctx.strokeStyle = "#9ebfb3"; ctx.lineWidth = 1; ctx.stroke();
     };
     window.travelio = {
+        language: { set: language => { document.documentElement.lang = language; } },
         storage: {
             get: key => transaction("readonly", s => s.get(key)),
             set: (key, value) => transaction("readwrite", s => s.put(value, key)),
